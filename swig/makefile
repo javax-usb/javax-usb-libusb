@@ -7,7 +7,7 @@ SWIG          = /cygdrive/c/usr/bin/swigwin-1.3.36/swig.exe
 JAVA_HOME     = /cygdrive/c/Program\ Files/Java/jdk1.6.0_07
 LIBUSB_PATH   = ../../libusb-win32-device-bin-0.1.12.1
 C_OPTIONS      = -mno-cygwin
-JNI_DLL       = LibusbJNI.dll
+JNI_DLL       = usbJNI.dll
 INCLUDE       = -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/win32 -I$(LIBUSB_PATH)/include
 LINK_OPTIONS = -Wl,--kill-at -mno-cygwin
 else
@@ -21,7 +21,7 @@ INCLUDE       = -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -I$(LIBUSB_P
 LINK_OPTINS   =
 endif
 
-IFILE         = Libusb
+IFILE         = libusb
 INTERFACE     = $(IFILE).i
 WRAPFILE      = $(IFILE)_wrap
 CC            = gcc

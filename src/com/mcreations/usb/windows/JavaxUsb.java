@@ -1147,8 +1147,8 @@ class JavaxUsb
 
     //*************************************************************************
     // Class constants
-    public static final String LIBRARY_NAME = "LibusbJNI";
-//    public static final String LIBRARY_NAME = "usbJNI";
+//    public static final String LIBRARY_NAME = "LibusbJNI";
+    public static final String LIBRARY_NAME = "usbJNI";
     public static final String ERROR_WHILE_LOADING_SHARED_LIBRARY = "Error while loading shared library";
     public static final String EXCEPTION_WHILE_LOADING_SHARED_LIBRARY = "Exception while loading shared library";
 //    private static final int SPEED_UNKNOWN = 0;
