@@ -1,61 +1,44 @@
-# NMAKE (VC++ 6.0) Makefile for using SWIG and Java for C code
-#
 # Copyright (c) 2005 m-creations gmbh http://www.m-creations.com
 #
-
 # - JAVA_HOME should point to your jdk
 # - location of SWIG should be corrected
-# - location of libusb
 
-SWIG          = C:\Programme\swig\swig.exe
+SWIG          = /cygdrive/c/usr/bin/swigwin-1.3.36/swig.exe
 
-LIBUSB        = M:\Programme\libusb-win32
-LIBUSB_LIBPATH= $(LIBUSB)\lib\msvc
+JAVA_HOME     = /cygdrive/c/Program\ Files/Java/jdk1.6.0_07
 
-VC_PATH       = "C:\Programme\Microsoft Visual Studio\VC98"
 IFILE         = Libusb
 INTERFACE     = $(IFILE).i
-WRAPFILE      = $(IFILE)_wrap.c
+WRAPFILE      = $(IFILE)_wrap
 
-# Location of the Visual C++ tools (32 bit assumed)
+CC            = gcc
 
-TARGET        = $(IFILE).dll
-CC            = cl.exe
-LINK          = link.exe
-MACHINE       = I386
+SWIG_DEST     = ../src/net/sf/libusb
 
-# C Library needed to build a DLL
-
-DLLIBC        = msvcrt.lib oldnames.lib  
-
-# Windows libraries that are apparently needed
-WINLIB        = kernel32.lib advapi32.lib user32.lib gdi32.lib comdlg32.lib winspool.lib
-
-# Libraries common to all DLLs
-LIBS          = libusb.lib $(DLLIBC) $(WINLIB)  
-
-# Linker options
-LOPT      = -debug:full -debugtype:cv /NODEFAULTLIB /RELEASE /NOLOGO \
-             /libpath:$(LIBUSB_LIBPATH) /MACHINE:$(MACHINE) \
-             -entry:_DllMainCRTStartup@12 -dll
-
-
-# C compiler flags
-
-CFLAGS        = /Z7 /Od /c /nologo
-JAVA_INCLUDE    = -I$(JAVA_HOME)\include -I$(JAVA_HOME)\include\win32 -I$(LIBUSB)\src\src
-
+LIBUSB_PATH   = ../../libusb-win32-device-bin-0.1.12.1
+INCLUDE       = -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/win32 -I$(LIBUSB_PATH)/include
+JNI_DLL       = LibusbJNI.dll
 java::
-	$(SWIG) -package net.sf.libusb -v -Wall -java -o $(WRAPFILE) $(INTERFACE)
-	$(CC) $(CFLAGS) $(JAVA_INCLUDE) $(WRAPFILE)
-	set LIB=$(VC_PATH)\lib
-	$(LINK) $(LOPT) -out:$(IFILE)JNI.dll $(LIBS) $(IFILE)_wrap.obj
-	javac *.java
+	$(SWIG) -package net.sf.libusb -I${INCLUDE} -v -Wall -java -o $(WRAPFILE).c $(INTERFACE)
+	$(CC) -c -mno-cygwin -shared $(INCLUDE) $(WRAPFILE).c -o $(WRAPFILE).o
+	$(CC) -shared $(WRAPFILE).o -o $(JNI_DLL) -L$(LIBUSB_PATH)/lib/gcc -lusb -Wl,--kill-at -mno-cygwin
+	
+	chmod 666 $(WRAPFILE).c
+	chmod 777 $(JNI_DLL)
+	mv $(JNI_DLL) ../lib/
+	# the reset just makes an moves java files around
+	chmod 666 *.java
+	rm -f $(SWIG_DEST)/*.java
+	mv *.java $(SWIG_DEST)/
 
 clean :
-	-@erase .\$(IFILE)_wrap.*
-	-@erase .\LibusbJNI.*
-	-@erase .\SWIGTYPE_*
-	-@erase .\*~
+	rm -f $(IFILE)_wrap.*
+	rm -f LibusbJNI.*
+	rm -f SWIGTYPE_*
+	rm -f *.java
+	rm -f *.class
+	rm -f $(JNI_DLL)
+	rm -f *~
+	rm -f ../lib/$(JNI_DLL)
 
 
