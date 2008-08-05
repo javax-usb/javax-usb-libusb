@@ -101,7 +101,12 @@
 	<!-- build the jsr80.jar, if not available by calling its build.xml -->	<target name="jar-ri" unless="jsr80_ri.jar.available">		<echo message="Building jsr80_ri.jar first."/>		<ant antfile="${Jsr80Env.JSR80_RI_BASE_DIR}/build.xml" target="jars" />	</target>
 	<!-- Compile classfiles and create the native library -->
 	<target name="compile">
-		<available	           file="${Jsr80Env.JSR80_RI_BASE_DIR}/lib/jsr80_ri.jar"	           property="jsr80_ri.jar.available"	           value="true"	    	   />		<antcall target="jar-ri" />		<echo message="Compiling class files."/>
+		<available 
+			file="${Jsr80Env.JSR80_RI_BASE_DIR}/lib/jsr80_ri.jar" 
+			property="jsr80_ri.jar.available"
+			value="true"/>
+			<antcall target="jar-ri" />
+			<echo message="Compiling class files."/>
 		<mkdir dir="${jsr80.windows.dest.dir}"/>
 		<javac
 			srcdir="${jsr80.windows.src.dir}"
@@ -110,10 +115,17 @@
 			optimize="${jsr80.windows.optimize}"
 			deprecation="${jsr80.windows.deprecation}"
 			verbose="${jsr80.windows.verbose}"
-			failonerror="yes">			<classpath>				<pathelement location="${Jsr80Env.JSR80_RI_BASE_DIR}/lib/jsr80_ri.jar"/>				<pathelement location="${Jsr80Env.JSR80_BASE_DIR}/lib/jsr80.jar"/>			</classpath>		</javac>
+			failonerror="yes">
+			<classpath>
+				<pathelement location="./lib/commons-logging.jar"/>
+				<pathelement location="./lib/log4j.jar"/>
+				<pathelement location="${Jsr80Env.JSR80_RI_BASE_DIR}/lib/jsr80_ri.jar"/>
+				<pathelement location="${Jsr80Env.JSR80_BASE_DIR}/lib/jsr80.jar"/>
+			</classpath>
+		</javac>
 
 		<!-- <exec executable="build" dir="${jsr80.windows.jni.src.dir}" failonerror="yes">
-		</exec>		-->
+		</exec>		-->
 	</target>
 
 	<!-- 
@@ -198,8 +210,10 @@
 	<!-- Cleans everything -->
 	<target name="clean">
 		<echo message="Cleaning everything."/>
-		<delete verbose="${jsr80.windows.verbose}" quiet="${jsr80.windows.quiet}" failonerror="false">
-			<fileset dir="${jsr80.windows.dest.dir}" includes="com/ibm/jusb/**/*.class"/>
+<!--		<defaultexcludes echo="true"/> -->
+		<delete verbose="${jsr80.windows.verbose}" quiet="${jsr80.windows.quiet}" failonerror="true">
+		 	<fileset dir="." defaultexcludes="false" includes="**/*~"/>
+			<fileset dir="${jsr80.windows.dest.dir}" includes="**/*.class"/>
 			<fileset dir="${jsr80.windows.jarfile.dir}" includes="${jsr80.windows.jarfile}"/>
 			<fileset dir="${jsr80.windows.jni.dest.dir}" includes="${jsr80.windows.jni.library}"/>
 			<fileset dir="${jsr80.windows.jdoc.dir}"/>
