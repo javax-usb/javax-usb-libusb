@@ -1,6 +1,70 @@
 README for javax.usb Windows
 ============================
 
+Code status: development
+Todo
+	isocronous data transfer
+	TESTING, TESTING, TESTING
+	install package for end users and application developers
+
+Author: Mike Crowe (mcrowe at gcdataconcepts dot com)
+Last modification: 2008-Jul-30
+Updated code to use latest release of libusb-win32, (libusb-win32-device-bin-0.1.12.1).  
+Get Reports now work through syncSubmit and UsbControlIrps.  Interrupt in data flow working.  
+It appears that Kambiz had bulk tranfers working, but I am unclear as to the exact status.  
+Support still lacking for isocronous data tranfer.  Brought up to date to use cvs release 
+which is at least version 1.0.2 for javax.usb and 1.0.2 for javax.usb.ri.  
+Tested against usb-accelerometer (see  http://www.gcdataconcepts.com for details) 
+which supports get and set reports as well as interrupt driven in data.
+
+How to compile this code
+install cygwin on a Windows computer
+use cygwin setup to install the following
+	swig
+	gcc
+	binutils
+	make
+	cvs
+	ssh (if you'd like to work remotely)
+	
+install a java development kit.  I used jdk1.6.0_07, but other versions
+should work as well.
+
+install libusb-win32 see http://libusb-win32.sourceforge.net/
+
+install apache-ant (http://ant.apache.org/)
+
+
+I commented out part of usb.h (part of libusb-win32) dealing with windows specific components of the
+dll, but this is probably unnessisary
+
+
+To build, start with the swig directory.  You will probably have to adjust
+some paths to get it to compile properly.  When it compiles properly you
+should hav a LibusbJNK.dll file in the ./lib directory and a number of .java
+files in ./src/net/sf/libusb directory.  When you have this, the native
+interface is complete and it's time to build the .jar file
+
+I used ant from apache like this to make jars but had to export JAVA_HOME
+first
+
+export JAVA_HOME=`cygpath -wp /cygdrive/c/Program\ Files/Java/jdk1.6.0_07/`
+
+ /path/to/ant/apache-ant-1.7.1-bin/apache-ant-1.7.1/bin/ant.bat jars
+
+Once you have the jsr80_windows.jar file you are ready to test the
+installation.
+
+As part of testing Kamiz used log4j.jar and commons-loggin.jar for
+diagnostics.  It works well, but if you don't use it, that's ok.  The
+interface will report that it's missing and continue on without it.
+
+Testing
+OK puff, puff puff.  That was alot of pain.  Now comes the hard part,
+testing.  I used my target hardware (http://www.gcdataconcepts.com/xlr8r-1.html)
+for testing.  You will need to find your own device. 
+
+
 Author: Kambiz Darabi (darabi at m-creations dot com)
 Last modification: 2005-08-22
 
@@ -58,8 +122,8 @@ JSR80 project web site is http://javax-usb.org
 
 
 
-Requirements
-============
+Build Requirements
+==================
 
 
 Java	Standard Edition >= 1.3 (tested on 1.3 and 1.4)
