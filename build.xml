@@ -1,6 +1,7 @@
 
 <!-- JSR80 Windows Implementation -->
 <!--
+ * Copyright (c) 2008 mcrowe GCDC LLC
  * Copyright (c) 2005 m-creations GmbH
  * Copyright (c) 2003 Dan Streetman (ddstreet@ieee.org)
  * Copyright (c) 2003 International Business Machines Corporation
@@ -16,7 +17,10 @@
 	<!-- User overrides from environment -->
 	<!-- Note these depend on ANT not overwriting preset variables -->
 	<property environment="Jsr80Env"/>
-	<property name="Jsr80Env.JSR80_RI_BASE_DIR" value="../javax-usb-ri"/>	<property name="Jsr80Env.JSR80_BASE_DIR" value="../javax-usb"/>
+
+	<property name="Jsr80Env.JSR80_RI_BASE_DIR" value="./"/>
+	<property name="Jsr80Env.JSR80_BASE_DIR" value="./"/>
+		
 	<property name="Jsr80Env.JSR80_WINDOWS_JARFILE" value="jsr80_windows.jar"/>
 	<property name="Jsr80Env.JSR80_WINDOWS_SRC_DIR" value="src"/>
 	<property name="Jsr80Env.JSR80_WINDOWS_DEST_DIR" value="${Jsr80Env.JSR80_WINDOWS_SRC_DIR}"/>
@@ -79,6 +83,8 @@
 	<property name="jsr80.windows.jdoc.package" value="yes"/>
 	<property name="jsr80.windows.jdoc.private" value="no"/>
 
+	<property name="jsr80_ri.jar.available" value="no"/>
+
 	<property name="jsr80.windows.jdoc.path" value="${Jsr80Env.JSR80_WINDOWS_JDOC_PATH}"/>
 
 	<!-- Show help -->
@@ -98,7 +104,11 @@
 
 	<!-- clean, compile, jars, jdoc -->
 	<target name="all" depends="clean,compile,jars,jdoc"/>
-	<!-- build the jsr80.jar, if not available by calling its build.xml -->	<target name="jar-ri" unless="jsr80_ri.jar.available">		<echo message="Building jsr80_ri.jar first."/>		<ant antfile="${Jsr80Env.JSR80_RI_BASE_DIR}/build.xml" target="jars" />	</target>
+	<!-- build the jsr80.jar, if not available by calling its build.xml -->
+		<target name="jar-ri" unless="jsr80_ri.jar.available">
+			<echo message="Building jsr80_ri.jar first."/>
+			<ant antfile="${Jsr80Env.JSR80_RI_BASE_DIR}/build.xml" target="jars" />
+		</target>
 	<!-- Compile classfiles and create the native library -->
 	<target name="compile">
 		<available 
