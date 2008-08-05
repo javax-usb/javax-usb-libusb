@@ -371,7 +371,7 @@ class JavaxUsb
         try
         {
             log(LOG_HOTPLUG, FUNC, CLASS, "loadLibrary", "Getting java.library.path");
-            String temp = "java.library.path="+System.getProperty("java.library.path");
+//            String temp = "java.library.path="+System.getProperty("java.library.path");
             
 //            System.out.println("java.library.path="+System.getProperty("java.library.path")); 	
             System.loadLibrary(LIBRARY_NAME);

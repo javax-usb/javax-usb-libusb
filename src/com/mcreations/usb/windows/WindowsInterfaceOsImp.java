@@ -27,7 +27,7 @@ import com.ibm.jusb.os.UsbInterfaceOsImp;
 
 //import javax.usb.UsbDevice;
 import net.sf.libusb.usb_config_descriptor;
-import net.sf.libusb.usb_device;
+//import net.sf.libusb.usb_device;
 
 /**
  * UsbInterfaceOsImp implementation for Windows platform.
