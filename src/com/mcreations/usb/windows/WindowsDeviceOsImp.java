@@ -128,6 +128,8 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
     public void syncSubmit(UsbIrpImp irp)
         throws UsbException
     {
+    if(log.isDebugEnabled())log.debug("syncSubmit() sending an irp" );
+    
         sendRequest(irp);
 
         // currently (2005-02-03) control messages are always synchronous in libusb
@@ -150,6 +152,8 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
 
         if (irp instanceof UsbControlIrpImp)
         {
+            if (log.isDebugEnabled()) log.debug( "sendRequest() irp instance of UsbControlIrpImp");
+              
             UsbControlIrpImp cIrp = (UsbControlIrpImp) irp;
 
             // wait until we can access libusb safely
@@ -168,15 +172,13 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
                 }
 
                 // FIXME timeout value hard-coded
-                int result =
-                    Libusb.usb_control_msg(
-                        handle,
-                        cIrp.bmRequestType(),
-                        cIrp.bRequest(),
-                        cIrp.wValue(),
-                        cIrp.wIndex(),
-                        cIrp.getData(),
-                        5000);
+//                int result = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(),
+//                        cIrp.wValue(),cIrp.wIndex(),cIrp.getData(),5000);
+                int result = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(),
+                        cIrp.wValue(),cIrp.wIndex(),cIrp.getData(),JavaxUsb.getIoTimeout());
+                  cIrp.setActualLength(result);
+                  if(log.isDebugEnabled()) log.debug( "sendRequest() Libusb.usb_control_msg returned "+result);
+
             }
             finally
             {
@@ -332,7 +334,7 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
                                 "Unable to fetch serial number string\r\n");
                         }
                     }
-                }
+                } // end if isDebugEnabled()
             }
             finally
             {
@@ -374,8 +376,6 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
             JavaxUsb.getMutex().release();
         }
 
-        // set this device to unconfigured state
-        setActiveUsbConfigurationNumber((byte) 0);
         handle = null;
     }
 }

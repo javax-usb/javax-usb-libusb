@@ -12,8 +12,6 @@ package com.mcreations.usb.windows;
 
 import com.ibm.jusb.UsbDeviceImp;
 import com.ibm.jusb.UsbHubImp;
-import com.ibm.jusb.UsbInterfaceImp;
-import com.ibm.jusb.UsbPortImp;
 import com.ibm.jusb.os.AbstractUsbServices;
 import com.ibm.jusb.util.RunnableManager;
 
@@ -22,6 +20,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import javax.usb.UsbDevice;
 import javax.usb.UsbDeviceDescriptor;
 import javax.usb.UsbException;
@@ -29,7 +30,7 @@ import javax.usb.UsbHostManager;
 import javax.usb.UsbHub;
 import javax.usb.UsbServices;
 import javax.usb.event.UsbServicesEvent;
-import javax.usb.util.UsbUtil;
+//import javax.usb.util.UsbUtil;
 
 
 /**
@@ -40,9 +41,13 @@ import javax.usb.util.UsbUtil;
 public class WindowsUsbServices extends AbstractUsbServices
     implements UsbServices
 {
+    /** Used for logging */
+    Log log = LogFactory.getLog(WindowsUsbServices.class);
+
     public WindowsUsbServices()
         throws UsbException
     {
+           
         JavaxUsb.initialise();
 
         topologyUpdateManager.setMaxSize(Long.MAX_VALUE);
@@ -59,6 +64,8 @@ public class WindowsUsbServices extends AbstractUsbServices
     public synchronized UsbHub getRootUsbHub()
         throws UsbException
     {
+        if(log.isDebugEnabled()) log.debug( "getRootUsbHub() requested hub" );
+
         synchronized (topologyLock)
         {
             if (!firstUpdateDone)
@@ -135,9 +142,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         try
         {
             if (p.containsKey(TOPOLOGY_UPDATE_DELAY_KEY))
-                topologyUpdateDelay =
-                    Integer.decode(p.getProperty(TOPOLOGY_UPDATE_DELAY_KEY))
-                               .intValue();
+                topologyUpdateDelay = Integer.decode(p.getProperty(TOPOLOGY_UPDATE_DELAY_KEY)).intValue();
         }
         catch (Exception e)
         {
@@ -146,10 +151,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         try
         {
             if (p.containsKey(TOPOLOGY_UPDATE_NEW_DEVICE_DELAY_KEY))
-                topologyUpdateNewDeviceDelay =
-                    Integer.decode(
-                        p.getProperty(TOPOLOGY_UPDATE_NEW_DEVICE_DELAY_KEY))
-                               .intValue();
+                topologyUpdateNewDeviceDelay = Integer.decode(p.getProperty(TOPOLOGY_UPDATE_NEW_DEVICE_DELAY_KEY)).intValue();
         }
         catch (Exception e)
         {
@@ -158,10 +160,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         try
         {
             if (p.containsKey(TOPOLOGY_UPDATE_USE_POLLING_KEY))
-                topologyUpdateUsePolling =
-                    Boolean.valueOf(
-                        p.getProperty(TOPOLOGY_UPDATE_USE_POLLING_KEY))
-                               .booleanValue();
+                topologyUpdateUsePolling = Boolean.valueOf(p.getProperty(TOPOLOGY_UPDATE_USE_POLLING_KEY)).booleanValue();
         }
         catch (Exception e)
         {
@@ -170,8 +169,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         try
         {
             if (p.containsKey(TRACING_KEY))
-                JavaxUsb.setTracing(
-                    Boolean.valueOf(p.getProperty(TRACING_KEY)).booleanValue());
+                JavaxUsb.setTracing(Boolean.valueOf(p.getProperty(TRACING_KEY)).booleanValue());
         }
         catch (Exception e)
         {
@@ -181,10 +179,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         try
         {
             if (p.containsKey(TRACE_DEFAULT_KEY))
-                JavaxUsb.setTraceType(
-                    Boolean.valueOf(p.getProperty(TRACE_DEFAULT_KEY))
-                               .booleanValue(),
-                    "default");
+                JavaxUsb.setTraceType(Boolean.valueOf(p.getProperty(TRACE_DEFAULT_KEY)).booleanValue(),"default");
         }
         catch (Exception e)
         {
@@ -235,8 +230,9 @@ public class WindowsUsbServices extends AbstractUsbServices
         }
     }
 
+
     /** @return If the topology listener is listening */
-    private boolean isListening()
+/*    private boolean isListening()
     {
         try
         {
@@ -247,16 +243,18 @@ public class WindowsUsbServices extends AbstractUsbServices
             return false;
         }
     }
+*/
 
     /** Start Topology Change Listener Thread */
     private void startTopologyListener()
     {
         Runnable r = null;
         String threadName = null;
-
+                         
         if (topologyUpdateUsePolling)
         {
             threadName = "USB Topology Poller";
+            if(log.isDebugEnabled())log.debug( "startTopologyListner started TopologyListner using polling with thread name <"+threadName+">" );
             r = new Runnable()
                     {
                         public void run()
@@ -285,9 +283,7 @@ public class WindowsUsbServices extends AbstractUsbServices
                     {
                         public void run()
                         {
-                            topologyListenerExit(
-                                JavaxUsb.nativeTopologyListener(
-                                    WindowsUsbServices.this));
+                            topologyListenerExit(JavaxUsb.nativeTopologyListener(WindowsUsbServices.this));
                         }
                     };
         }
@@ -297,9 +293,10 @@ public class WindowsUsbServices extends AbstractUsbServices
         topologyListener.setDaemon(true);
         topologyListener.setName(threadName);
 
-        topologyListenerError = 0;
+//        topologyListenerError = 0;
         topologyListener.start();
     }
+
 
     /** Update the topology and fire connect/disconnect events */
     private void updateTopology()
@@ -307,14 +304,11 @@ public class WindowsUsbServices extends AbstractUsbServices
         List connectedDevices = new ArrayList();
         List disconnectedDevices = new ArrayList();
 
-        fillDeviceList(
-            getRootUsbHubImp(),
-            disconnectedDevices);
+        fillDeviceList(getRootUsbHubImp(),disconnectedDevices);
         disconnectedDevices.remove(getRootUsbHubImp());
 
-        topologyUpdateResult =
-            JavaxUsb.nativeTopologyUpdater(
-                this, connectedDevices, disconnectedDevices);
+//        topologyUpdateResult =
+            JavaxUsb.nativeTopologyUpdater(this, connectedDevices, disconnectedDevices);
 
         for (int i = 0; i < disconnectedDevices.size(); i++)
             ((UsbDeviceImp) disconnectedDevices.get(i)).disconnect();
@@ -325,7 +319,7 @@ public class WindowsUsbServices extends AbstractUsbServices
 
             // fixme: setActiveConfig... is omitted to find out, whether it
             // is really needed in libusb implementation
-            // setActiveConfigAndInterfaceSettings(device);
+//          setActiveConfigAndInterfaceSettings(device);
             try
             {
                 device.getParentUsbPortImp().attachUsbDeviceImp(device);
@@ -349,16 +343,12 @@ public class WindowsUsbServices extends AbstractUsbServices
                 {
                 }
 
-                listenerImp.usbDeviceAttached(
-                    new UsbServicesEvent(
-                        this, (UsbDevice) connectedDevices.get(k)));
+                listenerImp.usbDeviceAttached(new UsbServicesEvent(this, (UsbDevice) connectedDevices.get(k)));
             }
         }
 
         for (int i = 0; i < disconnectedDevices.size(); i++)
-            listenerImp.usbDeviceDetached(
-                new UsbServicesEvent(
-                    this, (UsbDevice) disconnectedDevices.get(i)));
+            listenerImp.usbDeviceDetached(new UsbServicesEvent(this, (UsbDevice) disconnectedDevices.get(i)));
 
         synchronized (topologyLock)
         {
@@ -367,8 +357,9 @@ public class WindowsUsbServices extends AbstractUsbServices
         }
     }
 
+
     /** Is called from native code to enqueue an update topology request. */
-    private void topologyChange()
+/*    private void topologyChange()
     {
         try
         {
@@ -389,6 +380,7 @@ public class WindowsUsbServices extends AbstractUsbServices
 
         topologyUpdateManager.add(r);
     }
+*/
 
     /**
      * Called when the topology listener exits.
@@ -397,7 +389,7 @@ public class WindowsUsbServices extends AbstractUsbServices
     private void topologyListenerExit(int error)
     {
         //FIXME - disconnet all devices
-        topologyListenerError = error;
+//        topologyListenerError = error;
 
         synchronized (topologyLock)
         {
@@ -418,16 +410,14 @@ public class WindowsUsbServices extends AbstractUsbServices
      * @param connected The List of connected devices.
      * @return The new UsbDeviceImp or existing UsbDeviceImp.
      */
-    private UsbDeviceImp checkUsbDeviceImp(
+/*    private UsbDeviceImp checkUsbDeviceImp(
         UsbHubImp hub,
         int p,
         UsbDeviceImp device,
         List connected,
         List disconnected)
     {
-        JavaxUsb.log(
-            JavaxUsb.LOG_HOTPLUG, JavaxUsb.FUNC, "WindowsUsbServices",
-            "checkUsbDeviceImp", "Entered with device " + device);
+        if(log.isDebugEnabled()) log.debug("checkUsbDeviceImp() Entered with device " + device);
 
         byte port = (byte) p;
         UsbPortImp usbPortImp = hub.getUsbPortImp(port);
@@ -438,18 +428,13 @@ public class WindowsUsbServices extends AbstractUsbServices
             usbPortImp = hub.getUsbPortImp(port);
         }
 
-        JavaxUsb.log(
-            JavaxUsb.LOG_HOTPLUG, JavaxUsb.DEBUG, "WindowsUsbServices",
-            "checkUsbDeviceImp",
-            "Hub now has " + hub.getNumberOfPorts() + " ports");
+        if(log.isDebugEnabled()) log.debug("checkUsbDeviceImp() Hub now has " + hub.getNumberOfPorts() + " ports");
 
         if (!usbPortImp.isUsbDeviceAttached())
         {
             connected.add(device);
             device.setParentUsbPortImp(usbPortImp);
-            JavaxUsb.log(
-                JavaxUsb.LOG_HOTPLUG, JavaxUsb.FUNC, "WindowsUsbServices",
-                "checkUsbDeviceImp", "Leaving with device " + device);
+            if(log.isDebugEnabled()) log.debug("checkUsbDeviceImp() Leaving with device " + device);
 
             return device;
         }
@@ -459,9 +444,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         if (isUsbDevicesEqual(existingDevice, device))
         {
             disconnected.remove(existingDevice);
-            JavaxUsb.log(
-                JavaxUsb.LOG_HOTPLUG, JavaxUsb.FUNC, "WindowsUsbServices",
-                "checkUsbDeviceImp", "Leaving with device " + existingDevice);
+            if(log.isDebugEnabled()) log.debug("checkUsbDeviceImp Leaving with device " + existingDevice);
 
             return existingDevice;
         }
@@ -469,14 +452,12 @@ public class WindowsUsbServices extends AbstractUsbServices
         {
             connected.add(device);
             device.setParentUsbPortImp(usbPortImp);
-            JavaxUsb.log(
-                JavaxUsb.LOG_HOTPLUG, JavaxUsb.FUNC, "WindowsUsbServices",
-                "checkUsbDeviceImp", "Leaving with device " + device);
+            if(log.isDebugEnabled()) log.debug("checkUsbDeviceImp Leaving with device " + device);
 
             return device;
         }
     }
-
+*/
     /**
      * Return if the specified devices appear to be equal.
      * <p>
@@ -506,8 +487,8 @@ public class WindowsUsbServices extends AbstractUsbServices
     //*************************************************************************
     // Instance variables
     private RunnableManager topologyUpdateManager = new RunnableManager();
-    private int topologyListenerError = 0;
-    private int topologyUpdateResult = 0;
+//    private int topologyListenerError = 0;
+//    private int topologyUpdateResult = 0;
     private Object topologyLock = new Object();
 
     /** We have to prevent concurrent runs of topology update */
@@ -529,38 +510,28 @@ public class WindowsUsbServices extends AbstractUsbServices
      * before checking for device updates.  If polling, this is the number of ms between polls.
      */
     public static final int TOPOLOGY_UPDATE_DELAY = 5000; /* 5 seconds */
-    public static final String TOPOLOGY_UPDATE_DELAY_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.topologyUpdateDelay";
+    public static final String TOPOLOGY_UPDATE_DELAY_KEY = "com.mcreations.usb.windows.WindowsUsbServices.topologyUpdateDelay";
 
     /* This is a delay when new devices are found, before sending the notification event that there is a new device.
      * This delay is per-device.
      */
     public static final int TOPOLOGY_UPDATE_NEW_DEVICE_DELAY = 500; /* 1/2 second per device */
-    public static final String TOPOLOGY_UPDATE_NEW_DEVICE_DELAY_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.topologyUpdateNewDeviceDelay";
+    public static final String TOPOLOGY_UPDATE_NEW_DEVICE_DELAY_KEY = "com.mcreations.usb.windows.WindowsUsbServices.topologyUpdateNewDeviceDelay";
 
     /* Whether to use polling to wait for connect/disconnect notification */
     public static final boolean TOPOLOGY_UPDATE_USE_POLLING = true;
-    public static final String TOPOLOGY_UPDATE_USE_POLLING_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.topologyUpdateUsePolling";
+    public static final String TOPOLOGY_UPDATE_USE_POLLING_KEY ="com.mcreations.usb.windows.WindowsUsbServices.topologyUpdateUsePolling";
 
     /* The key in the properties file for this setting. */
-    public static final String TRACING_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.JNI.tracing";
-    public static final String TRACE_LEVEL_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_level";
-    public static final String TRACE_DEFAULT_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_default";
-    public static final String TRACE_HOTPLUG_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_hotplug";
-    public static final String TRACE_XFER_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_xfer";
-    public static final String TRACE_URB_KEY =
-        "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_urb";
+    public static final String TRACING_KEY = "com.mcreations.usb.windows.WindowsUsbServices.JNI.tracing";
+    public static final String TRACE_LEVEL_KEY = "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_level";
+    public static final String TRACE_DEFAULT_KEY = "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_default";
+    public static final String TRACE_HOTPLUG_KEY = "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_hotplug";
+    public static final String TRACE_XFER_KEY = "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_xfer";
+    public static final String TRACE_URB_KEY = "com.mcreations.usb.windows.WindowsUsbServices.JNI.trace_urb";
     public static final String WINDOWS_API_VERSION = "0.10.0";
     public static final String WINDOWS_IMP_VERSION = "0.10.0";
-    public static final String WINDOWS_IMP_DESCRIPTION =
-        "\t" + "JSR80 : javax.usb" + "\n" + "\n"
+    public static final String WINDOWS_IMP_DESCRIPTION = "\t" + "JSR80 : javax.usb" + "\n" + "\n"
         + "Implementation for Windows 98, 2000, and XP.\n" + "\n" + "\n" + "*"
         + "\n"
         + "* Copyright (c) 1999 - 2003, International Business Machines Corporation."
@@ -570,14 +541,13 @@ public class WindowsUsbServices extends AbstractUsbServices
         + "* http://oss.software.ibm.com/developerworks/opensource/license-cpl.html"
         + "\n" + "\n" + "http://javax-usb.org/" + "\n" + "\n";
 
+
     /**
      * Fill the List with all devices.
      * @param device The device to add.
      * @param list The list to add to.
      */
-    private void fillDeviceList(
-        UsbDeviceImp device,
-        List list)
+    private void fillDeviceList(UsbDeviceImp device,List list)
     {
         list.add(device);
 
@@ -593,11 +563,12 @@ public class WindowsUsbServices extends AbstractUsbServices
         }
     }
 
+
     /**
      * Find and set the active config and interface settings for this device.
      * @param device The UsbDeviceImp.
      */
-    protected void setActiveConfigAndInterfaceSettings(UsbDeviceImp device)
+/*    protected void setActiveConfigAndInterfaceSettings(UsbDeviceImp device)
     {
         WindowsDeviceOsImp windowsDeviceOsImp =
             (WindowsDeviceOsImp) device.getUsbDeviceOsImp();
@@ -608,8 +579,7 @@ public class WindowsUsbServices extends AbstractUsbServices
             device.setActiveUsbConfigurationNumber((byte) config);
         else
 
-            return; /* either the device is unconfigured or there was an error, so we can't continue */
-
+            return; // either the device is unconfigured or there was an error, so we can't continue 
         Iterator interfaces =
             device.getActiveUsbConfiguration().getUsbInterfaces().iterator();
 
@@ -634,11 +604,12 @@ public class WindowsUsbServices extends AbstractUsbServices
             }
             else
             {
-                /* If there is only one setting, just set it to the active setting. */
+                // If there is only one setting, just set it to the active setting. 
                 usbInterfaceImp.setActiveSettingNumber(
                     usbInterfaceImp.getUsbInterfaceDescriptor()
                                        .bAlternateSetting());
             }
         }
     }
+  */
 }

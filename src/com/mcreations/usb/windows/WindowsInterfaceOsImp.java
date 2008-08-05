@@ -25,6 +25,9 @@ import com.ibm.jusb.UsbInterfaceImp;
 import com.ibm.jusb.os.DefaultUsbInterfaceOsImp;
 import com.ibm.jusb.os.UsbInterfaceOsImp;
 
+//import javax.usb.UsbDevice;
+import net.sf.libusb.usb_config_descriptor;
+import net.sf.libusb.usb_device;
 
 /**
  * UsbInterfaceOsImp implementation for Windows platform.
@@ -164,6 +167,7 @@ class WindowsInterfaceOsImp extends DefaultUsbInterfaceOsImp
     private boolean interfaceNumberSet = false;
     private byte interfaceNumber = 0;
 
+
     /**
        Claims the interface using libusb method. Note, that
        {@link UsbInterfaceImp} takes care of checking, whether
@@ -171,27 +175,24 @@ class WindowsInterfaceOsImp extends DefaultUsbInterfaceOsImp
        <p>
        This implementation currently ignores the argument policy.
      */
-    public synchronized void claim(UsbInterfacePolicy policy)
-        throws UsbClaimException, UsbException, UsbNotActiveException, 
-            UsbDisconnectedException
+    public synchronized void claim(UsbInterfacePolicy policy) throws UsbClaimException, UsbException, UsbNotActiveException, UsbDisconnectedException
     {
-        log.debug("Entering claim.");
+        log.debug("Entering claim.with handle: "+getWindowsDeviceOsImp().getHandle()+"  iface: " +getInterfaceNumber());
 
         // acquire the mutex, so we access libusb exclusively
         JavaxUsb.getMutex().acquire();
 
         try
         {
-            int result =
-                Libusb.usb_claim_interface(
-                    getWindowsDeviceOsImp().getHandle(),
-                    getInterfaceNumber());
+            usb_config_descriptor ucd = getWindowsDeviceOsImp().getDevice().getConfig();
+            log.debug("Setting libusb to configuration number: "+ucd.getIConfiguration());
 
+            Libusb.usb_set_configuration(getWindowsDeviceOsImp().getHandle(),ucd.getIConfiguration());
+                         
+            int result = Libusb.usb_claim_interface(getWindowsDeviceOsImp().getHandle(),getInterfaceNumber());
             if (result != 0)
             {
-                String msg =
-                    "Couldn't claim interface. usb error: "
-                    + Libusb.usb_strerror();
+                String msg = "Couldn't claim interface. usb error: "+ Libusb.usb_strerror();
                 log.debug(msg);
                 throw new UsbClaimException(msg);
             }
@@ -202,8 +203,9 @@ class WindowsInterfaceOsImp extends DefaultUsbInterfaceOsImp
             JavaxUsb.getMutex().release();
         }
 
-        log.debug("Leaving claim");
+//        log.debug("Leaving claim");
     }
+
 
     /* (non-Javadoc)
      * @see javax.usb.UsbInterface#release()
@@ -212,23 +214,15 @@ class WindowsInterfaceOsImp extends DefaultUsbInterfaceOsImp
         throws UsbClaimException, UsbException, UsbNotActiveException, 
             UsbDisconnectedException
     {
-        log.debug("Entering release.");
-
         // acquire the mutex, so we access libusb exclusively
         JavaxUsb.getMutex().acquire();
 
         try
         {
-            int result =
-                Libusb.usb_release_interface(
-                    getWindowsDeviceOsImp().getHandle(),
-                    getInterfaceNumber());
-
+            int result = Libusb.usb_release_interface(getWindowsDeviceOsImp().getHandle(),getInterfaceNumber());
             if (result != 0)
             {
-                String msg =
-                    "Couldn't release interface. usb error: "
-                    + Libusb.usb_strerror();
+                String msg = "Couldn't release interface. usb error: "+ Libusb.usb_strerror();
                 log.debug(msg);
                 throw new UsbClaimException(msg);
             }
@@ -238,8 +232,6 @@ class WindowsInterfaceOsImp extends DefaultUsbInterfaceOsImp
             // release the mutex
             JavaxUsb.getMutex().release();
         }
-
-        log.debug("Leaving release");
     }
 
     /* (non-Javadoc)

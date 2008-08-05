@@ -178,11 +178,11 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
     public void open()
         throws UsbException
     {
-        log.debug("Entering open()");
+//        log.debug("Entering open()");
 
         // we don't need to store the handle, here, so just call getHandle
-        getWindowsInterfaceOsImp().getWindowsDeviceOsImp().getHandle();
-        log.debug("Leaving open()");
+  //      getWindowsInterfaceOsImp().getWindowsDeviceOsImp().getHandle();
+//        log.debug("Leaving open()");
     }
 
     /**
@@ -190,9 +190,9 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
      */
     public void close()
     {
-        log.debug("Entering close()");
+        log.debug("Closing Pipe");
 
-        try
+/*        try
         {
             // what shall "close a pipe" do? We close the corresponding device.
             getWindowsInterfaceOsImp().getWindowsDeviceOsImp().close();
@@ -202,8 +202,8 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
             log.debug("Leaving close() with UsbException " + e.getMessage());
             throw new RuntimeException(e);
         }
-
-        log.debug("Leaving close()");
+*/
+//        log.debug("Leaving close()");
     }
 
     /**
@@ -215,7 +215,6 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
         int timeout)
         throws UsbException
     {
-        log.debug("Entering submitIrp");
 
         UsbEndpoint ep = getUsbPipeImp().getUsbEndpoint();
         SWIGTYPE_p_usb_dev_handle handle =
@@ -227,6 +226,7 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
 
         // lock the access to the libusb
         JavaxUsb.getMutex().acquire();
+//        log.debug("Entering submitIrp, epType: "+epType+"  epDir: "+epDir+" timeout: "+timeout+" ms");
 
         try
         {
@@ -275,7 +275,7 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
                     {
                         action = "bulk read";
 
-                        byte[] bytes = new byte[64];
+//                        byte[] bytes = new byte[64];
                         result =
                             Libusb.usb_bulk_read(
                                 handle,
@@ -294,39 +294,22 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
                     if (epDir == UsbConst.ENDPOINT_DIRECTION_OUT)
                     {
                         action = "interrupt write";
-                        result =
-                            Libusb.usb_interrupt_write(
-                                handle,
-                                getEndpointAddress(),
-                                irp.getData(),
-                                timeout);
+                        result = Libusb.usb_interrupt_write(handle,getEndpointAddress(),irp.getData(),timeout);
+
                     }
                     else if (epDir == UsbConst.ENDPOINT_DIRECTION_IN)
                     {
                         action = "interrupt read";
-                        result =
-                            Libusb.usb_interrupt_read(
-                                handle,
-                                getEndpointAddress(),
-                                irp.getData(),
-                                timeout);
+                        result = Libusb.usb_interrupt_read(handle,getEndpointAddress(),irp.getData(),timeout);
                     }
-
+                    break;
                 default :
-                    throw new RuntimeException(
-                        "WindowsPipeOsImp.asyncSubmit: end point type not (yet) supported!");
+                    throw new RuntimeException("WindowsPipeOsImp.submitIrp: end point ("+epType+") type not (yet) supported!");
             }
-
-            if (log.isDebugEnabled())
-                log.debug(
-                    "Result of " + action + " operation: " + result
-                    + ", Irp.actualLength =  " + irp.getActualLength());
 
             if (result < 0)
             {
-                String msg =
-                    "Error during " + action + ", error code " + result + ": "
-                    + Libusb.usb_strerror();
+                String msg = "submitIrp: Error during " + action + ", error code " + result + ": "+ Libusb.usb_strerror();
                 log.debug(msg);
                 throw new UsbException(msg);
             }
@@ -334,16 +317,19 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
             {
                 irp.setActualLength(result);
             }
+
+//            if (log.isDebugEnabled())
+//                log.debug("Result of " + action + " operation: " + " Irp.actualLength =  " + irp.getActualLength());
         }
         finally
         {
-            // releas the lock, so access to libusb is possible, again
+            // release the lock, so access to libusb is possible, again
             JavaxUsb.getMutex().release();
 
             // we currently use libusb synchronous calls, only
             irp.complete();
-            log.debug("Leaving submitIrp");
         }
+//        log.debug("Leaving submitIrp");
     }
 
     /**
@@ -353,18 +339,12 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
     public void asyncSubmit(UsbIrpImp irp)
         throws UsbException
     {
-        log.debug("Entering asyncSubmit");
-        submitIrp(
-            irp,
-            JavaxUsb.getIoTimeout());
-        log.debug("Leaving asyncSubmit");
+        submitIrp(irp,JavaxUsb.getIoTimeout());
     }
 
     public void syncSubmit(UsbIrpImp irp)
         throws UsbException
     {
-        log.debug("Entering syncSubmit");
-        submitIrp(irp, 0);
-        log.debug("Leaving syncSubmit");
+        submitIrp(irp, JavaxUsb.getIoTimeout());
     }
 }

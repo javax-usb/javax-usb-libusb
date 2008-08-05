@@ -13,7 +13,6 @@ package com.mcreations.usb.windows;
 import com.ibm.jusb.UsbConfigurationDescriptorImp;
 import com.ibm.jusb.UsbConfigurationImp;
 import com.ibm.jusb.UsbControlPipeImp;
-import com.ibm.jusb.UsbDeviceDescriptorImp;
 import com.ibm.jusb.UsbDeviceImp;
 import com.ibm.jusb.UsbEndpointDescriptorImp;
 import com.ibm.jusb.UsbEndpointImp;
@@ -31,22 +30,16 @@ import net.sf.libusb.usb_device_descriptor;
 import net.sf.libusb.usb_endpoint_descriptor;
 import net.sf.libusb.usb_interface;
 import net.sf.libusb.usb_interface_descriptor;
-import net.sf.libusb.usb_version;
-import net.sf.libusb.usb_version_dll;
-import net.sf.libusb.usb_version_driver;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Iterator;
 import java.util.List;
 
 import javax.usb.UsbConst;
 import javax.usb.UsbDeviceDescriptor;
 import javax.usb.UsbException;
-import javax.usb.UsbPlatformException;
 
 
 /**
@@ -61,14 +54,11 @@ class JavaxUsb
     //*************************************************************************
     // Public methods
     private static boolean initialised;
-    private static boolean tracing = true;
     private static Log log = LogFactory.getLog(JavaxUsb.class);
 
     /** Since libusb is not thread safe, we have to synchronise access */
     private static Mutex mutex = new Mutex();
 
-    // FIXME remove this debug field
-    private static int numberOfRecognizedDevices = 0;
 
     private static void printEndpoint(usb_endpoint_descriptor endpoint)
     {
@@ -131,56 +121,56 @@ class JavaxUsb
 
         ;
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
             "-- Endpoint - address = " + endpoint.getBEndpointAddress()
             + " , type = " + type + " , direction = " + direction);
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
             "      bEndpointAddress: " + endpoint.getBEndpointAddress());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
             "      bDescriptorType:     " + endpoint.getBDescriptorType());
-        log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
-            "      bmAttributes:     " + endpoint.getBmAttributes());
-        log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
-            "      wMaxPacketSize:   " + endpoint.getWMaxPacketSize());
-        log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
-            "      bInterval:        " + endpoint.getBInterval());
-        log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
-            "      bRefresh:         " + endpoint.getBRefresh());
-        log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
-            "      bSynchAddress:    " + endpoint.getBSynchAddress());
+//        log(
+//            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
+//            "      bmAttributes:     " + endpoint.getBmAttributes());
+//        log(
+//            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
+//            "      wMaxPacketSize:   " + endpoint.getWMaxPacketSize());
+//        log(
+//            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
+//            "      bInterval:        " + endpoint.getBInterval());
+//        log(
+//            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
+//            "      bRefresh:         " + endpoint.getBRefresh());
+//        log(
+//            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
+//            "      bSynchAddress:    " + endpoint.getBSynchAddress());
     }
 
-    private static void printAltsetting(usb_interface_descriptor iface)
+    private static void printIfaceDesc(usb_interface_descriptor iface)
     {
         int i;
 
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    bInterfaceNumber:   " + iface.getBInterfaceNumber());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    bAlternateSetting:  " + iface.getBAlternateSetting());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    bNumEndpoints:      " + iface.getBNumEndpoints());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    bInterfaceClass:    " + iface.getBInterfaceClass());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    bInterfaceSubClass: " + iface.getBInterfaceSubClass());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    bInterfaceProtocol: " + iface.getBInterfaceProtocol());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printIfaceDesc",
             "    iInterface:         " + iface.getIInterface());
 
         for (i = 0; i < iface.getBNumEndpoints(); i++)
@@ -202,11 +192,8 @@ class JavaxUsb
         for (i = 0; i < iface.getNum_altsetting(); i++)
         {
             usb_interface_descriptor ifDesc;
-            ifDesc =
-                Libusb.usb_interface_descriptor_index(
-                    iface.getAltsetting(),
-                    i);
-            printAltsetting(ifDesc);
+            ifDesc = Libusb.usb_interface_descriptor_index(iface.getAltsetting(),i);
+            printIfaceDesc(ifDesc);
         }
     }
 
@@ -215,30 +202,29 @@ class JavaxUsb
         int i;
 
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printConfig",
             "  wTotalLength:         " + config.getWTotalLength());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printConfig",
             "  bNumInterfaces:       " + config.getBNumInterfaces());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printConfig",
             "  bConfigurationValue:  " + config.getBConfigurationValue());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printConfig",
             "  iConfiguration:       " + config.getIConfiguration());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printConfig",
             "  bmAttributes:         " + config.getBmAttributes());
         log(
-            LOG_HOTPLUG, DEBUG, CLASS, "log",
+            LOG_HOTPLUG, DEBUG, CLASS, "printConfig",
             "  MaxPower:             " + config.getMaxPower());
 
         for (i = 0; i < config.getBNumInterfaces(); i++)
         {
             usb_interface iface;
-            iface = Libusb.usb_interface_index(
-                    config.getInterface(),
-                    i);
+//            iface = Libusb.usb_interface_index(config.getInterface(),i);
+             iface = Libusb.usb_interface_index(config.get_interface(),i);
             printInterface(iface);
         }
     }
@@ -276,32 +262,32 @@ class JavaxUsb
         switch (level)
         {
             case CRITICAL :
-                log.fatal(msg);
+                log.fatal(func+"() "+msg);
 
                 break;
 
             case ERROR :
-                log.error(msg);
+                log.error(func+"() "+msg);
 
                 break;
 
             case INFO :
-                log.info(msg);
+                log.info(func+"() "+msg);
 
                 break;
 
             case FUNC :
-                log.trace(msg);
+                log.trace(func+"() "+msg);
 
                 break;
 
             case DEBUG :
-                log.debug(msg);
+                log.debug(func+"() "+msg);
 
                 break;
 
             default :
-                log.debug(msg);
+                log.debug(func+"() "+msg);
 
                 break;
         }
@@ -315,14 +301,11 @@ class JavaxUsb
         throws UsbException
     {
         String method = "initialise";
-        log(LOG_HOTPLUG, FUNC, CLASS, method, "Entering initialise");
 
+        log(LOG_HOTPLUG, FUNC, CLASS, method, "Entering initialise");
         if (initialised)
         {
-            log(
-                LOG_HOTPLUG, FUNC, CLASS, method,
-                "Already initialised. Leaving initialise");
-
+            log(LOG_HOTPLUG, FUNC, CLASS, method,"Already initialised. Leaving initialise");
             return;
         }
 
@@ -331,7 +314,7 @@ class JavaxUsb
         // we want to access libusb exclusively
         mutex.acquire();
 
-        usb_version version;
+//        usb_version version;
         try
         {
             Libusb.usb_init();
@@ -346,34 +329,34 @@ class JavaxUsb
                 Libusb.usb_set_debug(255);
             }
 
-            version = Libusb.usb_get_version();
+//            version = Libusb.usb_get_version();
         }
         finally
         {
             mutex.release();
         }
 
-        usb_version_dll dllVersion = version.getDll();
+//        usb_version_dll dllVersion = version.getDll();
 
-        String msg =
-            "Libusb-Win32 DLL version:\t" + dllVersion.getMajor() + "."
-            + dllVersion.getMinor() + "." + dllVersion.getMicro() + "."
-            + dllVersion.getNano();
+//        String msg =
+//            "Libusb-Win32 DLL version:\t" + dllVersion.getMajor() + "."
+//            + dllVersion.getMinor() + "." + dllVersion.getMicro() + "."
+//            + dllVersion.getNano();
 
-        log(LOG_DEFAULT, DEBUG, "JavaxUsb", "init", msg);
+//        log(LOG_DEFAULT, DEBUG, "JavaxUsb", "init", msg);
 
-        usb_version_driver driverVersion = version.getDriver();
+//        usb_version_driver driverVersion = version.getDriver();
 
         // When using the filter driver: if no USB device is attached, 
         // the result is -1, even when the filter driver service is running
-        if (driverVersion.getMajor() != -1)
-        {
-            msg = "Libusb-Win32 service driver version:\t"
-                + driverVersion.getMajor() + "." + driverVersion.getMinor()
-                + "." + driverVersion.getMicro() + "."
-                + driverVersion.getNano();
-            log(LOG_DEFAULT, DEBUG, CLASS, method, msg);
-        }
+//        if (driverVersion.getMajor() != -1)
+//        {
+//            msg = "Libusb-Win32 service driver version:\t"
+//                + driverVersion.getMajor() + "." + driverVersion.getMinor()
+//                + "." + driverVersion.getMicro() + "."
+//                + driverVersion.getNano();
+//            log(LOG_DEFAULT, DEBUG, CLASS, method, msg);
+//        }
 
         initialised = true;
     }
@@ -387,19 +370,23 @@ class JavaxUsb
 
         try
         {
+            log(LOG_HOTPLUG, FUNC, CLASS, "loadLibrary", "Getting java.library.path");
+            String temp = "java.library.path="+System.getProperty("java.library.path");
+            
+//            System.out.println("java.library.path="+System.getProperty("java.library.path")); 	
             System.loadLibrary(LIBRARY_NAME);
         }
         catch (Exception e)
         {
             throw new UsbException(
-                EXCEPTION_WHILE_LOADING_SHARED_LIBRARY + " "
-                + System.mapLibraryName(LIBRARY_NAME) + " : " + e.getMessage());
+                EXCEPTION_WHILE_LOADING_SHARED_LIBRARY + " <"
+                + System.mapLibraryName(LIBRARY_NAME) + "> : \n" + e.getMessage());
         }
         catch (Error e)
         {
             throw new UsbException(
-                ERROR_WHILE_LOADING_SHARED_LIBRARY + " "
-                + System.mapLibraryName(LIBRARY_NAME) + " : " + e.getMessage());
+                ERROR_WHILE_LOADING_SHARED_LIBRARY + " <"
+                + System.mapLibraryName(LIBRARY_NAME) + "> : \n" + e.getMessage());
         }
     }
 
@@ -454,17 +441,17 @@ class JavaxUsb
      * @param windowsDeviceOsImp
      * @return
      */
-    static native int nativeGetActiveConfigurationNumber(
-        WindowsDeviceOsImp windowsDeviceOsImp);
+//    static native int nativeGetActiveConfigurationNumber(
+//        WindowsDeviceOsImp windowsDeviceOsImp);
 
     /**
      * @param windowsDeviceOsImp
      * @param i
      * @return
      */
-    static native int nativeGetActiveInterfaceSettingNumber(
-        WindowsDeviceOsImp windowsDeviceOsImp,
-        int i);
+//    static native int nativeGetActiveInterfaceSettingNumber(
+//        WindowsDeviceOsImp windowsDeviceOsImp,
+//        int i);
 
     /**
      * Return if the specified devices appear to be equal.
@@ -531,7 +518,7 @@ class JavaxUsb
 
         log(
             LOG_HOTPLUG, DEBUG, CLASS, meth,
-            "Hub now has " + hub.getNumberOfPorts() + " ports");
+           meth+ " Hub now has " + hub.getNumberOfPorts() + " ports");
 
         UsbDeviceImp existingDevice = usbPortImp.getUsbDeviceImp();
 
@@ -560,9 +547,7 @@ class JavaxUsb
         return device;
     }
 
-    private static void buildConfig(
-        UsbDeviceImp usbDev,
-        usb_config_descriptor config)
+    private static void buildConfig(UsbDeviceImp usbDev,usb_config_descriptor config)
     {
         //	    (*env)->CallStaticObjectMethod(
         //	            env, JavaxUsb, createUsbConfigurationImp, usbDeviceImp,
@@ -570,96 +555,85 @@ class JavaxUsb
         //	            config_desc->wTotalLength, config_desc->bNumInterfaces, 
         //	            config_desc->bConfigurationValue, config_desc->iConfiguration,
         //	            config_desc->bmAttributes, config_desc->MaxPower, is_active);
-        UsbConfigurationDescriptorImp desc =
-            new UsbConfigurationDescriptorImp(
-                (byte) config.getBLength(), (byte) config.getBDescriptorType(),
-                (short) config.getWTotalLength(),
-                (byte) config.getBNumInterfaces(),
-                (byte) config.getBConfigurationValue(),
-                (byte) config.getIConfiguration(),
-                (byte) config.getBmAttributes(), (byte) config.getMaxPower());
+        UsbConfigurationDescriptorImp desc = new UsbConfigurationDescriptorImp((byte) config.getBLength(), 
+                (byte) config.getBDescriptorType(),(short) config.getWTotalLength(),
+                (byte) config.getBNumInterfaces(),(byte) config.getBConfigurationValue(),
+                (byte) config.getIConfiguration(),(byte) config.getBmAttributes(), 
+                (byte) config.getMaxPower());
 
         UsbConfigurationImp usbConfig = new UsbConfigurationImp(usbDev, desc);
         usbDev.addUsbConfigurationImp(usbConfig);
 
+        // FIXME: since most devices only support one configuration we will use the first one as default
+        // this is probably ok for devices that support more than one configuration as well
+        // unless it has been somehow previously set
+        if(config.getBConfigurationValue() == 1)
+        {
+          log(LOG_HOTPLUG, FUNC, CLASS, "buildConfiguration","WARNING Using config " + config.getBConfigurationValue()+" as active; no checking.");
+          config.setIConfiguration((byte)1);
+          usbDev.setActiveUsbConfigurationNumber((byte)config.getBConfigurationValue());
+        }
+        
         for (int i = 0; i < config.getBNumInterfaces(); i++)
         {
             usb_interface iface;
-            iface = Libusb.usb_interface_index(
-                    config.getInterface(),
-                    i);
+//            iface = Libusb.usb_interface_index(config.getInterface(),i);
+            iface = Libusb.usb_interface_index(config.get_interface(),i);
 
             for (int j = 0; j < iface.getNum_altsetting(); j++)
             {
                 usb_interface_descriptor ifaceDesc;
+                ifaceDesc = Libusb.usb_interface_descriptor_index(iface.getAltsetting(),j);
 
-                ifaceDesc =
-                    Libusb.usb_interface_descriptor_index(
-                        iface.getAltsetting(),
-                        j);
                 buildInterface(usbConfig, ifaceDesc);
             }
         }
 
-        // FIXME: where do we set the active configuration ?
-        //			to retrieve it, we have to use a request
-        // if (active)
-        //     device.setActiveUsbConfigurationNumber(configValue);
     }
+
 
     /**
      * @param usbConfig
      * @param ifaceDesc
      */
-    private static void buildInterface(
-        UsbConfigurationImp usbConfig,
-        usb_interface_descriptor ifaceDesc)
+    private static void buildInterface(UsbConfigurationImp usbConfig, usb_interface_descriptor ifaceDesc)
     {
-        log(
-            LOG_HOTPLUG, FUNC, CLASS, "buildInterface",
-            "Entering with config " + usbConfig);
+        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","Entering with config " + usbConfig);
 
-        UsbInterfaceDescriptorImp desc =
-            new UsbInterfaceDescriptorImp(
-                (byte) ifaceDesc.getBLength(),
-                (byte) ifaceDesc.getBDescriptorType(),
-                (byte) ifaceDesc.getBInterfaceNumber(),
-                (byte) ifaceDesc.getBAlternateSetting(),
-                (byte) ifaceDesc.getBNumEndpoints(),
-                (byte) ifaceDesc.getBInterfaceClass(),
-                (byte) ifaceDesc.getBInterfaceSubClass(),
-                (byte) ifaceDesc.getBInterfaceProtocol(),
-                (byte) ifaceDesc.getIInterface());
+        UsbInterfaceDescriptorImp desc = new UsbInterfaceDescriptorImp((byte) ifaceDesc.getBLength(),
+                (byte) ifaceDesc.getBDescriptorType(),(byte) ifaceDesc.getBInterfaceNumber(),
+                (byte) ifaceDesc.getBAlternateSetting(),(byte) ifaceDesc.getBNumEndpoints(),
+                (byte) ifaceDesc.getBInterfaceClass(),(byte) ifaceDesc.getBInterfaceSubClass(),
+                (byte) ifaceDesc.getBInterfaceProtocol(),(byte) ifaceDesc.getIInterface());
 
+        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","new interface descriptor " + desc);
+            
         UsbInterfaceImp iface = new UsbInterfaceImp(usbConfig, desc);
 
-        boolean active = ((0 == ifaceDesc.getBAlternateSetting())
-            ? true
-            : false);
+        boolean active = ((0 == ifaceDesc.getBAlternateSetting())? true : false);
 
         /* If the config is not active, neither are its interface settings */
-        if (usbConfig.isActive() && active)
-            iface.setActiveSettingNumber(
-                iface.getUsbInterfaceDescriptor().bAlternateSetting());
+        if(usbConfig.isActive() && active)
+        {
+          log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","inteface is active");
+            iface.setActiveSettingNumber(iface.getUsbInterfaceDescriptor().bAlternateSetting());
+        }
+        else
+        {
+          log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","inteface not active");
+        
+        }
 
-        WindowsDeviceOsImp windowsDeviceOsImp =
-            (WindowsDeviceOsImp) iface.getUsbConfigurationImp().getUsbDeviceImp();
-        WindowsInterfaceOsImp windowsInterfaceOsImp =
-            new WindowsInterfaceOsImp(iface, windowsDeviceOsImp);
+        WindowsDeviceOsImp windowsDeviceOsImp = (WindowsDeviceOsImp) iface.getUsbConfigurationImp().getUsbDeviceImp();
+        WindowsInterfaceOsImp windowsInterfaceOsImp = new WindowsInterfaceOsImp(iface, windowsDeviceOsImp);
         iface.setUsbInterfaceOsImp(windowsInterfaceOsImp);
 
         for (int i = 0; i < ifaceDesc.getBNumEndpoints(); i++)
         {
-            buildEndpoint(
-                iface,
-                Libusb.usb_endpoint_descriptor_index(
-                    ifaceDesc.getEndpoint(),
-                    i));
+            buildEndpoint(iface, Libusb.usb_endpoint_descriptor_index(ifaceDesc.getEndpoint(),i));
         }
 
-        log(
-            LOG_HOTPLUG, FUNC, CLASS, "buildInterface",
-            "Leaving with interface " + iface);
+        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","Leaving with interface " + iface);
     }
 
     /**
@@ -727,12 +701,12 @@ class JavaxUsb
                 break;
 
             default :
-
-                //FIXME - log?
-                throw new RuntimeException(
-                    "Invalid UsbEndpoint type " + ep.getType());
+                String emsg = "Invalid UsbEndpoint type " + ep.getType();
+                log.error("buildEndpoint() "+emsg);
+                throw new RuntimeException(emsg);
         }
     }
+
 
     /**
      * Creates a UsbDevice or UsbHub, depending on the type of
@@ -745,18 +719,11 @@ class JavaxUsb
      * @param connectedDevices
      * @param disconnectedDevices
      */
-    static void buildDevice(
-        usb_device dev,
-        usb_bus bus,
-        UsbHubImp parentHub,
-        int parentport,
-        List connectedDevices,
-        List disconnectedDevices)
+    static void buildDevice( usb_device dev, usb_bus bus, UsbHubImp parentHub, int parentport, List connectedDevices, List disconnectedDevices)
     {
         String meth = "buildDevice";
-        log(
-            LOG_HOTPLUG, FUNC, CLASS, meth,
-            "Entered buildDevice with device " + dev.getFilename());
+
+        log(LOG_HOTPLUG, FUNC, CLASS, meth,"Entered buildDevice with device " + dev.getFilename());
 
         UsbDeviceImp usbDev;
 
@@ -770,7 +737,7 @@ class JavaxUsb
         }
         else
         {
-            log(LOG_HOTPLUG, DEBUG, CLASS, meth, "Device is NOT a hub.");
+            log(LOG_HOTPLUG, DEBUG, CLASS, meth, "Device is normal (NOT a hub).");
             usbDev = new WindowsDeviceOsImp(dev);
         }
 
@@ -780,17 +747,13 @@ class JavaxUsb
         // now build all configurations
         for (int i = 0; i < dev.getDescriptor().getBNumConfigurations(); i++)
         {
-            buildConfig(
-                usbDev,
-                Libusb.usb_config_descriptor_index(
-                    dev.getConfig(),
-                    i));
+            buildConfig(usbDev,Libusb.usb_config_descriptor_index(dev.getConfig(),i));
         }
 
-        checkUsbDeviceImp(
-            parentHub, parentport, usbDev, connectedDevices, disconnectedDevices);
+        checkUsbDeviceImp(parentHub, parentport, usbDev, connectedDevices, disconnectedDevices);
 
         log.debug("Leaving buildDevice with device " + dev.getFilename());
+        log.debug("");
     }
 
     /**
@@ -854,11 +817,12 @@ class JavaxUsb
 
                 usb_device dev = bus.getDevices();
 
-                int index = 1;
+//                int index = 1;
 
                 while (dev != null)
                 {
                     usb_device_descriptor devDesc = dev.getDescriptor();
+                    log(LOG_HOTPLUG, DEBUG, CLASS, method, "nativeTopologyListener devDesc: "+devDesc);
                     msg = "Device: " + dev.getFilename();
                     log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
 
@@ -880,16 +844,11 @@ class JavaxUsb
                             i++)
                     {
                         usb_config_descriptor config;
-                        config =
-                            Libusb.usb_config_descriptor_index(
-                                dev.getConfig(),
-                                i);
-                        printConfiguration(config);
+                        config = Libusb.usb_config_descriptor_index(dev.getConfig(),i);
+                        if(log.isDebugEnabled()) printConfiguration(config);
                     }
 
-                    buildDevice(
-                        dev, bus, rootHub, portNum++, connectedDevices,
-                        disconnectedDevices);
+                    buildDevice(dev, bus, rootHub, portNum++, connectedDevices,disconnectedDevices);
 
                     dev = dev.getNext();
                 }
@@ -927,7 +886,7 @@ class JavaxUsb
     // Creation methods
 
     /** @return A new UsbConfigurationImp */
-    private static UsbConfigurationImp createUsbConfigurationImp(
+/*    private static UsbConfigurationImp createUsbConfigurationImp(
         UsbDeviceImp device,
         byte length,
         byte type,
@@ -939,8 +898,8 @@ class JavaxUsb
         byte maxPowerNeeded,
         boolean active)
     {
-        /* BUG - Java (IBM JVM at least) does not handle certain JNI byte -> Java byte (or shorts) */
-        /* Email ddstreet@ieee.org for more info */
+        // BUG - Java (IBM JVM at least) does not handle certain JNI byte -> Java byte (or shorts) 
+        // Email ddstreet@ieee.org for more info 
         length += 0;
         type += 0;
         numInterfaces += 0;
@@ -961,9 +920,9 @@ class JavaxUsb
 
         return config;
     }
-
+*/
     /** @return A new UsbEndpointImp */
-    private static UsbEndpointImp createUsbEndpointImp(
+/*    private static UsbEndpointImp createUsbEndpointImp(
         UsbInterfaceImp iface,
         byte length,
         byte type,
@@ -972,8 +931,8 @@ class JavaxUsb
         byte interval,
         short maxPacketSize)
     {
-        /* BUG - Java (IBM JVM at least) does not handle certain JNI byte -> Java byte (or shorts) */
-        /* Email ddstreet@ieee.org for more info */
+        // BUG - Java (IBM JVM at least) does not handle certain JNI byte -> Java byte (or shorts) 
+        // Email ddstreet@ieee.org for more info 
         length += 0;
         type += 0;
         endpointAddress += 0;
@@ -1035,17 +994,17 @@ class JavaxUsb
 
             default :
 
-                //FIXME - log?
-                throw new RuntimeException(
-                    "Invalid UsbEndpoint type " + ep.getType());
+                String emsg = "Invalid UsbEndpoint type " + ep.getType();
+                log.error("createUsbEndpointImp"+emsg);
+                throw new RuntimeException(emsg);
         }
 
         return ep;
     }
-
+*/
     //*************************************************************************
     // Setup methods
-    private static UsbDeviceDescriptor configureUsbDeviceImp(
+/*    private static UsbDeviceDescriptor configureUsbDeviceImp(
         UsbDeviceImp targetDevice,
         byte length,
         byte type,
@@ -1063,8 +1022,8 @@ class JavaxUsb
         short bcdUsb,
         int speed)
     {
-        /* BUG - Java (IBM JVM at least) does not handle certain JNI byte -> Java byte (or shorts) */
-        /* Email ddstreet@ieee.org for more info */
+        // BUG - Java (IBM JVM at least) does not handle certain JNI byte -> Java byte (or shorts) 
+        // Email ddstreet@ieee.org for more info 
         length += 0;
         type += 0;
         deviceClass += 0;
@@ -1108,7 +1067,7 @@ class JavaxUsb
 
             default :
 
-                /* log */
+                // log 
                 targetDevice.setSpeed(UsbConst.DEVICE_SPEED_UNKNOWN);
 
                 break;
@@ -1116,7 +1075,7 @@ class JavaxUsb
 
         return desc;
     }
-
+*/
     /**
      * Connect a device to a hub's port.
      * @param hub The parent hub.
@@ -1130,6 +1089,8 @@ class JavaxUsb
     {
         try
         {
+             log(LOG_HOTPLUG, DEBUG, "JavaxUsb", "connectUsbDeviceImp","device connect : ");
+
             device.connect(hub, (byte) port);
         }
         catch (UsbException uE)
@@ -1175,7 +1136,7 @@ class JavaxUsb
      */
     static void setTracing(boolean enable)
     {
-        tracing = enable;
+//        tracing = enable;
     }
 
     //*************************************************************************
@@ -1187,13 +1148,12 @@ class JavaxUsb
     //*************************************************************************
     // Class constants
     public static final String LIBRARY_NAME = "LibusbJNI";
-    public static final String ERROR_WHILE_LOADING_SHARED_LIBRARY =
-        "Error while loading shared library";
-    public static final String EXCEPTION_WHILE_LOADING_SHARED_LIBRARY =
-        "Exception while loading shared library";
-    private static final int SPEED_UNKNOWN = 0;
-    private static final int SPEED_LOW = 1;
-    private static final int SPEED_FULL = 2;
+//    public static final String LIBRARY_NAME = "usbJNI";
+    public static final String ERROR_WHILE_LOADING_SHARED_LIBRARY = "Error while loading shared library";
+    public static final String EXCEPTION_WHILE_LOADING_SHARED_LIBRARY = "Exception while loading shared library";
+//    private static final int SPEED_UNKNOWN = 0;
+//    private static final int SPEED_LOW = 1;
+//    private static final int SPEED_FULL = 2;
     public static final String LOG_DEFAULT = "default";
     public static final String LOG_XFER = "xfer";
     public static final String LOG_HOTPLUG = "hotplug";
