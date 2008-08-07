@@ -17,6 +17,7 @@ import javax.usb.UsbConst;
 import javax.usb.UsbDeviceDescriptor;
 import javax.usb.UsbDisconnectedException;
 import javax.usb.UsbException;
+import javax.usb.util.UsbUtil;
 
 import net.sf.libusb.Libusb;
 import net.sf.libusb.SWIGTYPE_p_usb_dev_handle;
@@ -128,8 +129,6 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
     public void syncSubmit(UsbIrpImp irp)
         throws UsbException
     {
-    if(log.isDebugEnabled())log.debug("syncSubmit() sending an irp" );
-    
         sendRequest(irp);
 
         // currently (2005-02-03) control messages are always synchronous in libusb
@@ -162,23 +161,42 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
             try
             {
                 // set configuration has its own libusb method
-                if (cIrp.bRequest() == UsbConst.REQUEST_SET_CONFIGURATION)
+                if( (cIrp.bRequest() == UsbConst.REQUEST_SET_CONFIGURATION) && (cIrp.bmRequestType() ==0) )
                 {
-                    Libusb.usb_set_configuration(
-                        getHandle(),
-                        cIrp.wValue());
-
+                    Libusb.usb_set_configuration( getHandle(),cIrp.wValue());
                     return;
                 }
 
-                // FIXME timeout value hard-coded
-//                int result = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(),
-//                        cIrp.wValue(),cIrp.wIndex(),cIrp.getData(),5000);
-                int result = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(),
-                        cIrp.wValue(),cIrp.wIndex(),cIrp.getData(),JavaxUsb.getIoTimeout());
-                  cIrp.setActualLength(result);
-                  if(log.isDebugEnabled()) log.debug( "sendRequest() Libusb.usb_control_msg returned "+result);
+                byte[] data = cIrp.getData();
+                if( (cIrp.bmRequestType() & UsbConst.REQUESTTYPE_DIRECTION_MASK) == UsbConst.REQUESTTYPE_DIRECTION_OUT)
+                { // this patch is needed because cIrp.wLength is not used as the argument to usb_control_msg
+                  // for reads, this is ok as the transfer size is governed by the device,
+                  // but when sending data a specific length needs to be send
+                  // FIXME - generate a rule in the SWIG processing to allow control of the length argument
+                    if(log.isDebugEnabled()) log.debug("sendRequest() direction OUT Len: "+cIrp.wLength());
+                    byte[] data1 = cIrp.getData();
+                    data = new byte[cIrp.wLength()];
+                    for(int i =0;i<data.length;i++)
+                    {
+                      data[i]=data1[i];
+                    }
+                }
 
+                if(log.isDebugEnabled()) log.debug( "sendRequest() bmRequestType: "+UsbUtil.toHexString(cIrp.bmRequestType())+
+                                                      "  bRequest: "+UsbUtil.toHexString(cIrp.bRequest())+
+                                                      "  wValue: "+UsbUtil.toHexString(cIrp.wValue())+
+                                                      "  wIndex: "+UsbUtil.toHexString(cIrp.wIndex())+
+                                                      "  wLength: "+UsbUtil.toHexString(cIrp.wLength()));
+
+                int result = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(), cIrp.wValue(), cIrp.wIndex(),data ,JavaxUsb.getIoTimeout());
+                if(result >=0) 
+                  cIrp.setActualLength(result);
+                else
+                {
+                  String msg = "usb_control_msg: " + Libusb.usb_strerror() +"  errorno: " + result;
+                  log.debug(msg);
+                  throw new UsbException(msg);
+                }
             }
             finally
             {
