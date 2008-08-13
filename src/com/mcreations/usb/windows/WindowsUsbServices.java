@@ -293,7 +293,7 @@ public class WindowsUsbServices extends AbstractUsbServices
         topologyListener.setDaemon(true);
         topologyListener.setName(threadName);
 
-//        topologyListenerError = 0;
+//      topologyListenerError = 0;
         topologyListener.start();
     }
 
@@ -305,17 +305,23 @@ public class WindowsUsbServices extends AbstractUsbServices
         List disconnectedDevices = new ArrayList();
 
         fillDeviceList(getRootUsbHubImp(),disconnectedDevices);
-        disconnectedDevices.remove(getRootUsbHubImp());
+        while(disconnectedDevices.remove(getRootUsbHubImp()));
 
-//        topologyUpdateResult =
-            JavaxUsb.nativeTopologyUpdater(this, connectedDevices, disconnectedDevices);
+        JavaxUsb.nativeTopologyUpdater(this, connectedDevices, disconnectedDevices);
 
-        for (int i = 0; i < disconnectedDevices.size(); i++)
-            ((UsbDeviceImp) disconnectedDevices.get(i)).disconnect();
-
-        for (int i = 0; i < connectedDevices.size(); i++)
+        Iterator iterator = disconnectedDevices.iterator();
+        while(iterator.hasNext())
         {
-            UsbDeviceImp device = (UsbDeviceImp) connectedDevices.get(i);
+            UsbDeviceImp device = (UsbDeviceImp) iterator.next();
+            if(log.isDebugEnabled()) log.debug( "updateTopology() disconnecting device: "+device );
+            device.disconnect();
+            listenerImp.usbDeviceDetached(new UsbServicesEvent(this, (UsbDevice)device ));
+        }
+
+        iterator = connectedDevices.iterator();
+        while(iterator.hasNext())
+        {
+            UsbDeviceImp device = (UsbDeviceImp) iterator.next();
 
             // fixme: setActiveConfig... is omitted to find out, whether it
             // is really needed in libusb implementation
@@ -330,25 +336,19 @@ public class WindowsUsbServices extends AbstractUsbServices
                 continue;
             }
 
-            for (int k = 0; k < connectedDevices.size(); k++)
+            // Let's wait a bit before each new device's event, so its driver can have some time to
+            // talk to it without interruptions.  FIXME, why is this delay here?
+            try
             {
-                /* Let's wait a bit before each new device's event, so its driver can have some time to
-                 * talk to it without interruptions.
-                 */
-                try
-                {
-                    Thread.sleep(topologyUpdateNewDeviceDelay);
-                }
-                catch (InterruptedException iE)
-                {
-                }
-
-                listenerImp.usbDeviceAttached(new UsbServicesEvent(this, (UsbDevice) connectedDevices.get(k)));
+                Thread.sleep(topologyUpdateNewDeviceDelay);
             }
-        }
+            catch (InterruptedException iE)
+            {
+            }
+            if(log.isDebugEnabled()) log.debug( "updateTopology() connected device: "+device );
 
-        for (int i = 0; i < disconnectedDevices.size(); i++)
-            listenerImp.usbDeviceDetached(new UsbServicesEvent(this, (UsbDevice) disconnectedDevices.get(i)));
+            listenerImp.usbDeviceAttached(new UsbServicesEvent(this, (UsbDevice) device));
+        }
 
         synchronized (topologyLock)
         {

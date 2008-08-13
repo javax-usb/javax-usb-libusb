@@ -36,6 +36,7 @@ import org.apache.commons.logging.LogFactory;
 
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Iterator;
 
 import javax.usb.UsbConst;
 import javax.usb.UsbDeviceDescriptor;
@@ -798,10 +799,11 @@ class JavaxUsb
                 // nothing has changed, so all devices which
                 // were present before (they are in disconnectedDevices)
                 // are still present, now
-                for (int i = 0; i < disconnectedDevices.size(); i++)
+                Iterator iterator = disconnectedDevices.iterator();
+                while(iterator.hasNext())
                 {
-                    connectedDevices.add(disconnectedDevices.get(i));
-                    disconnectedDevices.remove(i);
+                  connectedDevices.add(iterator.next());
+                  iterator.remove();
                 }
                 return 0;
             }
