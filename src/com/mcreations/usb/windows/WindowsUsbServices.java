@@ -303,11 +303,14 @@ public class WindowsUsbServices extends AbstractUsbServices
     {
         List connectedDevices = new ArrayList();
         List disconnectedDevices = new ArrayList();
-
+        
         fillDeviceList(getRootUsbHubImp(),disconnectedDevices);
         while(disconnectedDevices.remove(getRootUsbHubImp()));
 
-        JavaxUsb.nativeTopologyUpdater(this, connectedDevices, disconnectedDevices);
+        int updates = JavaxUsb.nativeTopologyUpdater(this, connectedDevices, disconnectedDevices);
+        if(updates == 0) return;  // if there are no changes go home early
+        // connectedDevices contains all new devices found
+        // disconnectedDevices contains all devices removed
 
         Iterator iterator = disconnectedDevices.iterator();
         while(iterator.hasNext())
@@ -340,7 +343,7 @@ public class WindowsUsbServices extends AbstractUsbServices
             // talk to it without interruptions.  FIXME, why is this delay here?
             try
             {
-                Thread.sleep(topologyUpdateNewDeviceDelay);
+                if(!device.isUsbHub()) Thread.sleep(topologyUpdateNewDeviceDelay);
             }
             catch (InterruptedException iE)
             {

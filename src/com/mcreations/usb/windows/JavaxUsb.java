@@ -26,7 +26,7 @@ import net.sf.libusb.Libusb;
 import net.sf.libusb.usb_bus;
 import net.sf.libusb.usb_config_descriptor;
 import net.sf.libusb.usb_device;
-import net.sf.libusb.usb_device_descriptor;
+//import net.sf.libusb.usb_device_descriptor;
 import net.sf.libusb.usb_endpoint_descriptor;
 import net.sf.libusb.usb_interface;
 import net.sf.libusb.usb_interface_descriptor;
@@ -42,6 +42,7 @@ import javax.usb.UsbConst;
 import javax.usb.UsbDeviceDescriptor;
 import javax.usb.UsbException;
 
+import java.io.UnsupportedEncodingException;
 
 /**
  * Interface to/from JNI.
@@ -60,7 +61,7 @@ class JavaxUsb
     /** Since libusb is not thread safe, we have to synchronise access */
     private static Mutex mutex = new Mutex();
 
-
+/*
     private static void printEndpoint(usb_endpoint_descriptor endpoint)
     {
         String type;
@@ -147,7 +148,8 @@ class JavaxUsb
 //            LOG_HOTPLUG, DEBUG, CLASS, "printEndpoint",
 //            "      bSynchAddress:    " + endpoint.getBSynchAddress());
     }
-
+*/
+/*
     private static void printIfaceDesc(usb_interface_descriptor iface)
     {
         int i;
@@ -185,8 +187,8 @@ class JavaxUsb
             printEndpoint(epDesc);
         }
     }
-
-    private static void printInterface(usb_interface iface)
+*/
+/*    private static void printInterface(usb_interface iface)
     {
         int i;
 
@@ -197,8 +199,8 @@ class JavaxUsb
             printIfaceDesc(ifDesc);
         }
     }
-
-    private static void printConfiguration(usb_config_descriptor config)
+*/
+/*    private static void printConfiguration(usb_config_descriptor config)
     {
         int i;
 
@@ -229,7 +231,7 @@ class JavaxUsb
             printInterface(iface);
         }
     }
-
+*/
     /**
      * Log messages to System.err, if the level <= current traceLevel.
      * @param logname The logger name, one of:
@@ -391,6 +393,7 @@ class JavaxUsb
         }
     }
 
+
     /**
      * Convert the error code to a UsbException.
      * @param error The error code.
@@ -400,6 +403,7 @@ class JavaxUsb
     {
         return new UsbException(nativeGetErrorMessage(error));
     }
+
 
     /**
      * Convert the error code to a UsbException using the specified text.
@@ -416,6 +420,7 @@ class JavaxUsb
     {
         return new UsbException(string + " : " + nativeGetErrorMessage(error));
     }
+
 
     //*************************************************************************
     // Native methods
@@ -455,30 +460,43 @@ class JavaxUsb
 //        int i);
 
     /**
-     * Return if the specified devices appear to be equal.
+     * Return if the compared devices are the same device.
+     * FIXME relies on the device serial number string to be unique for each device (this may not always be true
+     *  if we could examine the port number / path, we could make a more definative argument
+     *  Testing starts with easy things to compare and becomes progressivly more complicated
      * <p>
      * If either of the device's descriptors are null, this returns false.
      * @param dev1 The first device.
      * @param dev2 The second device.
      * @return If the devices appear to be equal.
      */
-    protected static boolean isUsbDevicesEqual(
-        UsbDeviceImp dev1,
-        UsbDeviceImp dev2)
+    protected static boolean isUsbDevicesEqual(UsbDeviceImp dev1,UsbDeviceImp dev2)
     {
         try
         {
             UsbDeviceDescriptor desc1 = dev1.getUsbDeviceDescriptor();
             UsbDeviceDescriptor desc2 = dev2.getUsbDeviceDescriptor();
 
-            return (dev1.isUsbHub() == dev1.isUsbHub())
-                && (dev1.getSpeed() == dev2.getSpeed()) && desc1.equals(desc2);
+            if( dev1.isUsbHub() != dev1.isUsbHub() ) return(false);
+            if( dev1.getSpeed() != dev2.getSpeed() ) return(false);
+            if( !desc1.equals(desc2) ) return(false);
+            if( !dev1.getSerialNumberString().equals(dev2.getSerialNumberString() )) return(false);
+            return(true);
+        }
+        catch (UnsupportedEncodingException uee)
+        { 
+            return(false);
         }
         catch (NullPointerException npE)
         {
-            return false;
+            return(false);
+        }
+        catch (UsbException  ue)
+        {
+            return(false);
         }
     }
+
 
     /**
      * Check for the existence of a device in the given <code>connected</code> and
@@ -494,68 +512,54 @@ class JavaxUsb
      * @param hub The parent UsbHubImp.
      * @param p The parent port number.
      * @param device The UsbDeviceImp to add.
-     * @param disconnected The List of disconnected devices.
-     * @param connected The List of connected devices.
+     * @param currentDevices - the list of devices that were connected before this call to topology update
+     * @param disconnected The List of all devices that can possibly disconnected
+     * @param connected The List of connected devices that are newely connected
      * @return The new UsbDeviceImp or existing UsbDeviceImp.
      */
-    private static UsbDeviceImp checkUsbDeviceImp(
-        UsbHubImp hub,
-        int p,
-        UsbDeviceImp device,
-        List connected,
-        List disconnected)
+    private static void checkUsbDeviceImp(UsbHubImp hub, int p, UsbDeviceImp device, List currentDevices, List connected)
     {
         String meth = "checkUsbDeviceImp";
-        log(LOG_HOTPLUG, FUNC, CLASS, meth, "Entered with device " + device);
-
-        byte port = (byte) p;
-        UsbPortImp usbPortImp = hub.getUsbPortImp(port);
-
+        byte port = (byte)p;
+        
+        if(log.isDebugEnabled()) log.debug( meth +"Entered with port" + p+"  our port num "+port );
+        UsbPortImp usbPortImp = hub.getUsbPortImp((byte)port);
         if (null == usbPortImp)
         {
-            hub.resize(port);
-            usbPortImp = hub.getUsbPortImp(port);
+          log.debug(meth+" WARNING resizing port");
+          hub.resize((byte)port);
+          usbPortImp = hub.getUsbPortImp((byte)port);
         }
 
-        log(
-            LOG_HOTPLUG, DEBUG, CLASS, meth,
-           meth+ " Hub now has " + hub.getNumberOfPorts() + " ports");
+        if(log.isDebugEnabled()) log.debug( meth+ " Hub now has " + hub.getNumberOfPorts() + " ports");
 
-        UsbDeviceImp existingDevice = usbPortImp.getUsbDeviceImp();
-
-        // If they are equal, it means, that the
-        // device was disconnected and then reconnected,
-        // because the main loop in topologyUpdater only
-        // calls buildDevice in case of changes in the
-        // topology (Libusb.usb_find_devices != 0).
-        if (isUsbDevicesEqual(existingDevice, device))
+        // look for this devices in the current device list, if found remove from the list
+        // because later, the remaining items in current device list will be removed.
+        boolean found = false;
+        Iterator iterator = currentDevices.iterator();
+        while( iterator.hasNext())
         {
-            disconnected.remove(existingDevice);
-            log(
-                LOG_HOTPLUG, FUNC, CLASS, meth,
-                "Removed disconnected device " + existingDevice);
+          if( isUsbDevicesEqual((UsbDeviceImp)iterator.next(), device))
+          {
+              iterator.remove();
+              found = true;
+          }
         }
 
-        if (usbPortImp.isUsbDeviceAttached())
-        {
-            usbPortImp.detachUsbDeviceImp(usbPortImp.getUsbDeviceImp());
+        // if the device was not found in the list, it must be new so add it to the connected list
+        if(!found)
+        {  
+          if(log.isDebugEnabled()) log.debug(meth+" adding new device");
+          connected.add(device);
+          device.setParentUsbPortImp(usbPortImp);
         }
 
-        connected.add(device);
-        device.setParentUsbPortImp(usbPortImp);
-        log(LOG_HOTPLUG, FUNC, CLASS, meth, "Leaving with device " + device);
-
-        return device;
+        if(log.isDebugEnabled()) log.debug(meth+ " Leaving with device " + device);
     }
+    
 
     private static void buildConfig(UsbDeviceImp usbDev,usb_config_descriptor config)
     {
-        //	    (*env)->CallStaticObjectMethod(
-        //	            env, JavaxUsb, createUsbConfigurationImp, usbDeviceImp,
-        //	            config_desc->bLength, config_desc->bDescriptorType, 
-        //	            config_desc->wTotalLength, config_desc->bNumInterfaces, 
-        //	            config_desc->bConfigurationValue, config_desc->iConfiguration,
-        //	            config_desc->bmAttributes, config_desc->MaxPower, is_active);
         UsbConfigurationDescriptorImp desc = new UsbConfigurationDescriptorImp((byte) config.getBLength(), 
                 (byte) config.getBDescriptorType(),(short) config.getWTotalLength(),
                 (byte) config.getBNumInterfaces(),(byte) config.getBConfigurationValue(),
@@ -570,7 +574,7 @@ class JavaxUsb
         // unless it has been somehow previously set
         if(config.getBConfigurationValue() == 1)
         {
-          log(LOG_HOTPLUG, FUNC, CLASS, "buildConfiguration","WARNING Using config " + config.getBConfigurationValue()+" as active; no checking.");
+//          log(LOG_HOTPLUG, FUNC, CLASS, "buildConfiguration","WARNING Using config " + config.getBConfigurationValue()+" as active; no checking.");
           config.setIConfiguration((byte)1);
           usbDev.setActiveUsbConfigurationNumber((byte)config.getBConfigurationValue());
         }
@@ -578,7 +582,6 @@ class JavaxUsb
         for (int i = 0; i < config.getBNumInterfaces(); i++)
         {
             usb_interface iface;
-//            iface = Libusb.usb_interface_index(config.getInterface(),i);
             iface = Libusb.usb_interface_index(config.get_interface(),i);
 
             for (int j = 0; j < iface.getNum_altsetting(); j++)
@@ -599,7 +602,7 @@ class JavaxUsb
      */
     private static void buildInterface(UsbConfigurationImp usbConfig, usb_interface_descriptor ifaceDesc)
     {
-        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","Entering with config " + usbConfig);
+//        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","Entering with config " + usbConfig);
 
         UsbInterfaceDescriptorImp desc = new UsbInterfaceDescriptorImp((byte) ifaceDesc.getBLength(),
                 (byte) ifaceDesc.getBDescriptorType(),(byte) ifaceDesc.getBInterfaceNumber(),
@@ -607,7 +610,7 @@ class JavaxUsb
                 (byte) ifaceDesc.getBInterfaceClass(),(byte) ifaceDesc.getBInterfaceSubClass(),
                 (byte) ifaceDesc.getBInterfaceProtocol(),(byte) ifaceDesc.getIInterface());
 
-        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","new interface descriptor " + desc);
+//        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","new interface descriptor " + desc);
             
         UsbInterfaceImp iface = new UsbInterfaceImp(usbConfig, desc);
 
@@ -616,7 +619,7 @@ class JavaxUsb
         /* If the config is not active, neither are its interface settings */
         if(usbConfig.isActive() && active)
         {
-          log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","inteface is active");
+//          log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","inteface is active");
             iface.setActiveSettingNumber(iface.getUsbInterfaceDescriptor().bAlternateSetting());
         }
         else
@@ -634,16 +637,14 @@ class JavaxUsb
             buildEndpoint(iface, Libusb.usb_endpoint_descriptor_index(ifaceDesc.getEndpoint(),i));
         }
 
-        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","Leaving with interface " + iface);
+//        log(LOG_HOTPLUG, FUNC, CLASS, "buildInterface","Leaving with interface " + iface);
     }
 
     /**
      * @param iface
      * @param usb_endpoint_descriptor
      */
-    private static void buildEndpoint(
-        UsbInterfaceImp iface,
-        usb_endpoint_descriptor endPointDesc)
+    private static void buildEndpoint(UsbInterfaceImp iface,usb_endpoint_descriptor endPointDesc)
     {
         UsbEndpointDescriptorImp desc =
             new UsbEndpointDescriptorImp(
@@ -717,10 +718,8 @@ class JavaxUsb
      * @param bus
      * @param parentHub
      * @param parentport
-     * @param connectedDevices
-     * @param disconnectedDevices
      */
-    static void buildDevice( usb_device dev, usb_bus bus, UsbHubImp parentHub, int parentport, List connectedDevices, List disconnectedDevices)
+    static UsbDeviceImp buildDevice( usb_device dev, usb_bus bus, UsbHubImp parentHub, int parentport)
     {
         String meth = "buildDevice";
 
@@ -728,7 +727,7 @@ class JavaxUsb
 
         UsbDeviceImp usbDev;
 
-        if (dev.getDescriptor().getBDeviceClass() == Libusb.USB_CLASS_HUB)
+        if( dev.getDescriptor().getBDeviceClass() == Libusb.USB_CLASS_HUB)
         {
             log(LOG_HOTPLUG, DEBUG, CLASS, meth, "Device is a hub.");
 
@@ -738,60 +737,58 @@ class JavaxUsb
         }
         else
         {
-            log(LOG_HOTPLUG, DEBUG, CLASS, meth, "Device is normal (NOT a hub).");
-            usbDev = new WindowsDeviceOsImp(dev);
-        }
+          log(LOG_HOTPLUG, DEBUG, CLASS, meth, "Device is NOT a hub.");
+          usbDev = new WindowsDeviceOsImp(dev);
+          
 
-        // libusb doesn't tell the speed
-        usbDev.setSpeed(UsbConst.DEVICE_SPEED_UNKNOWN);
+          // libusb doesn't tell the speed
+          usbDev.setSpeed(UsbConst.DEVICE_SPEED_UNKNOWN);
+          // now build all configurations
+          for (int i = 0; i < dev.getDescriptor().getBNumConfigurations(); i++)
+          {
+              buildConfig(usbDev,Libusb.usb_config_descriptor_index(dev.getConfig(),i));
+          }
 
-        // now build all configurations
-        for (int i = 0; i < dev.getDescriptor().getBNumConfigurations(); i++)
+        }                
+        if(log.isDebugEnabled())
         {
-            buildConfig(usbDev,Libusb.usb_config_descriptor_index(dev.getConfig(),i));
+          log.debug("Leaving buildDevice with device " + dev.getFilename());
+          log.debug("");
         }
-
-        checkUsbDeviceImp(parentHub, parentport, usbDev, connectedDevices, disconnectedDevices);
-
-        log.debug("Leaving buildDevice with device " + dev.getFilename());
-        log.debug("");
+        return(usbDev);
     }
 
+
     /**
+     * looks at the bus through libusb and attempts to update our knowlege of the system
+     * by putting new devices into the connectedDevices list and removing still present items from the 
+     * disconnected List
      * @param services
-     * @param connectedDevices
-     * @param disconnectedDevices
-     * @return
+     * @param connectedDevices - at entry contains no devices, at exit contains newly found devices
+     * @param disconnectedDevices -at entry contains all known devices, at exit contains newly removed devices
+     * @return 0 if no change, else -1
      */
-    static int nativeTopologyUpdater(
-        WindowsUsbServices services,
-        List connectedDevices,
-        List disconnectedDevices)
+    static int nativeTopologyUpdater(WindowsUsbServices services, List connectedDevices, List disconnectedDevices)
     {
         String method = "topologyUpdater";
         log(LOG_DEFAULT, FUNC, CLASS, method, "Entering topologyUpdater.");
 
         UsbHubImp rootHub = services.getRootUsbHubImp();
-
         if (rootHub == null)
         {
             // this shouldn't happen, as the root hub is setup during initialisation
-            throw new RuntimeException(
-                "The (virtual) root hub couldn't be retrieved.");
+            throw new RuntimeException("The (virtual) root hub couldn't be retrieved.");
         }
 
-        // acquire a lock, so we don't interfere with others
-        // trying to access libusb
+        // acquire a lock, so we don't interfere with others trying to access libusb
         mutex.acquire();
 
         try
         {
             int busCount = Libusb.usb_find_busses();
-            String msg = "Found " + busCount + " new busses.";
-            log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
-
             int deviceCount = Libusb.usb_find_devices();
-            msg = "Found " + deviceCount + " new devices.";
+
+            String msg = "Found " + busCount + " new busses. and " + deviceCount + " new devices.";
             log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
 
             if (deviceCount == 0)
@@ -808,55 +805,59 @@ class JavaxUsb
                 return 0;
             }
 
-            usb_bus bus = Libusb.usb_get_busses();
+            usb_bus libusb_bus = Libusb.usb_get_busses();
+            log.debug(" disconnectedDevices size: "+disconnectedDevices.size());
 
             int portNum = 1;
-
-            while (bus != null)
+            
+            while (libusb_bus != null)
             {
-                msg = "Scanning bus " + bus.getDirname();
+                msg = "Scanning bus " + libusb_bus.getDirname();
                 log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
 
-                usb_device dev = bus.getDevices();
+                usb_device libusb_dev = libusb_bus.getDevices();
 
-//                int index = 1;
-
-                while (dev != null)
+                while (libusb_dev != null)
                 {
-                    usb_device_descriptor devDesc = dev.getDescriptor();
-                    log(LOG_HOTPLUG, DEBUG, CLASS, method, "nativeTopologyListener devDesc: "+devDesc);
-                    msg = "Device: " + dev.getFilename();
-                    log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
-
-                    if (dev.getConfig() == null)
+//                    usb_device_descriptor devDesc = libusb_dev.getDescriptor();
+                    if(log.isDebugEnabled())
                     {
-                        log(
-                            LOG_HOTPLUG, ERROR, CLASS, method,
-                            "Couldn't retrieve descriptors for device '"
-                            + bus.getDirname() + "/" + dev.getFilename() + "'");
+                      msg = "Device: " + libusb_dev.getFilename();
+                      log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
+                    }
 
-                        dev = dev.getNext();
-
+                    if (libusb_dev.getConfig() == null)
+                    {
+                        log(LOG_HOTPLUG, ERROR, CLASS, method,"Couldn't retrieve descriptors for device '"+ libusb_bus.getDirname() + "/" + libusb_dev.getFilename() + "'");
+                        libusb_dev = libusb_dev.getNext();
                         continue;
                     }
 
-                    for (
-                        int i = 0;
-                            i < dev.getDescriptor().getBNumConfigurations();
-                            i++)
+//                      for( int i = 0; i < libusb_dev.getDescriptor().getBNumConfigurations();i++)
+//                      {
+//                          usb_config_descriptor config = Libusb.usb_config_descriptor_index(libusb_dev.getConfig(),i);
+//                          if(log.isDebugEnabled())
+//                            printConfiguration(config);
+//                      }
+//                    if( devDesc.getBDeviceClass() == Libusb.USB_CLASS_HUB)
+//                    {
+//                      UsbDeviceImp usbDev = buildDevice(libusb_dev, libusb_bus, rootHub, portNum++ );
+//                      portNum++;
+//                      log.debug(method+" device is Hub, skipping");
+//                    }
+//                    else 
                     {
-                        usb_config_descriptor config;
-                        config = Libusb.usb_config_descriptor_index(dev.getConfig(),i);
-                        if(log.isDebugEnabled()) printConfiguration(config);
+                        UsbDeviceImp usbDev = buildDevice(libusb_dev, libusb_bus, rootHub, portNum );
+                        // usbDev is a device that is being reported as existing by libusb
+                        // if it is found in our list of disconnectedDevices, remove it and add it to 
+                        // connected devices.
+                        checkUsbDeviceImp(rootHub, portNum++, usbDev, disconnectedDevices, connectedDevices);
                     }
-
-                    buildDevice(dev, bus, rootHub, portNum++, connectedDevices,disconnectedDevices);
-
-                    dev = dev.getNext();
+                    libusb_dev = libusb_dev.getNext();
                 }
-
-                bus = bus.getNext();
+                libusb_bus = libusb_bus.getNext();
             }
+            log.debug(" disconnectedDevices size: "+disconnectedDevices.size());
         }
         finally
         {
