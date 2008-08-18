@@ -225,15 +225,13 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
         String action = "";
 
         // lock the access to the libusb
-        JavaxUsb.getMutex().acquire();
 //        log.debug("Entering submitIrp, epType: "+epType+"  epDir: "+epDir+" timeout: "+timeout+" ms");
 
         try
         {
             switch (epType)
             {
-                case UsbConst.ENDPOINT_TYPE_BULK :
-
+            case UsbConst.ENDPOINT_TYPE_BULK :
                     if (epDir == UsbConst.ENDPOINT_DIRECTION_OUT)
                     {
                         action = "bulk write";
@@ -247,26 +245,21 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
                         while (written < requested)
                         {
                             byte[] buf;
-                            int toWrite =
-                                Math.min(requested - written, chunkSize);
+                            int toWrite = Math.min(requested - written, chunkSize);
                             buf = new byte[toWrite];
                             System.arraycopy(data, written, buf, 0, toWrite);
                             written += toWrite;
-                            res = Libusb.usb_bulk_write(
-                                    handle,
-                                    getEndpointAddress(),
-                                    buf,
-                                    timeout);
 
+                            JavaxUsb.getMutex().acquire(); //FIXME not sure if this is required
+                            res = Libusb.usb_bulk_write(handle,getEndpointAddress(),buf,timeout);
+                            JavaxUsb.getMutex().release(); //FIXME not sure if this is required
+                            
                             if (log.isDebugEnabled())
-                                log.debug(
-                                    "Called bulk_write with buffer of size "
-                                    + buf.length + ", res = " + res);
+                                log.debug("Called bulk_write with buffer of size "+ buf.length + ", res = " + res);
 
                             if (res != toWrite)
                             {
                                 result = res;
-
                                 break;
                             }
                         }
@@ -274,36 +267,29 @@ public class WindowsPipeOsImp extends DefaultUsbPipeOsImp
                     else if (epDir == UsbConst.ENDPOINT_DIRECTION_IN)
                     {
                         action = "bulk read";
-
-//                        byte[] bytes = new byte[64];
-                        result =
-                            Libusb.usb_bulk_read(
-                                handle,
-                                getEndpointAddress(),
-                                irp.getData(),
-                                timeout);
-
-                        // fixme: remove this debug msg
-                        log.debug("---------- result: " + result);
+                        JavaxUsb.getMutex().acquire(); //FIXME not sure if this is required
+                        result = Libusb.usb_bulk_read(handle,getEndpointAddress(),irp.getData(),timeout);
+                        JavaxUsb.getMutex().release(); //FIXME not sure if this is required
                     }
-
                     break;
 
-                case UsbConst.ENDPOINT_TYPE_INTERRUPT :
-
+            case UsbConst.ENDPOINT_TYPE_INTERRUPT :
                     if (epDir == UsbConst.ENDPOINT_DIRECTION_OUT)
                     {
                         action = "interrupt write";
+                        JavaxUsb.getMutex().acquire(); //FIXME not sure if this is required
                         result = Libusb.usb_interrupt_write(handle,getEndpointAddress(),irp.getData(),timeout);
-
+                        JavaxUsb.getMutex().release(); //FIXME not sure if this is required
                     }
                     else if (epDir == UsbConst.ENDPOINT_DIRECTION_IN)
                     {
                         action = "interrupt read";
+                        // don't use a mutex here because a long time may elapse before getting a response
+                        // and FIXME, not sure a mutex is required anyway for this action
                         result = Libusb.usb_interrupt_read(handle,getEndpointAddress(),irp.getData(),timeout);
                     }
                     break;
-                default :
+            default :
                     throw new RuntimeException("WindowsPipeOsImp.submitIrp: end point ("+epType+") type not (yet) supported!");
             }
 

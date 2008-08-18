@@ -79,13 +79,14 @@ public class Mutex
     public synchronized void release()
     {
         if (owner != Thread.currentThread())
-            throw new IllegalStateException(
-                "Thread calling release() doesn't own mutex");
+          return;
+//            throw new IllegalStateException(
+//                "Thread calling release() doesn't own mutex");
 
         if (--lock_count <= 0)
         {
             owner = null;
-            notify();
+            notifyAll();
         }
     }
 }
