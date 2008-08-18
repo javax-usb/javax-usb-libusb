@@ -319,6 +319,7 @@ public class WindowsUsbServices extends AbstractUsbServices
             if(log.isDebugEnabled()) log.debug( "updateTopology() disconnecting device: "+device );
             device.disconnect();
             listenerImp.usbDeviceDetached(new UsbServicesEvent(this, (UsbDevice)device ));
+            
         }
 
         iterator = connectedDevices.iterator();
@@ -329,21 +330,28 @@ public class WindowsUsbServices extends AbstractUsbServices
             // fixme: setActiveConfig... is omitted to find out, whether it
             // is really needed in libusb implementation
 //          setActiveConfigAndInterfaceSettings(device);
-            try
-            {
-                device.getParentUsbPortImp().attachUsbDeviceImp(device);
-            }
-            catch (IllegalArgumentException iae)
-            {
-                // device is already attached
-                continue;
-            }
+// attachUsbDeviceImp now occures in JavaUsb.java
+//            try
+//            {
+//                device.getParentUsbPortImp().attachUsbDeviceImp(device);
+//            }
+//            catch (IllegalArgumentException iae)
+//            {
+//                if(log.isDebugEnabled()) log.debug( "updateTopology() while attaching UsbDeviceImp "+iae );
+//                // device is already attached
+//                continue;
+//            }
 
             // Let's wait a bit before each new device's event, so its driver can have some time to
             // talk to it without interruptions.  FIXME, why is this delay here?
             try
             {
-                if(!device.isUsbHub()) Thread.sleep(topologyUpdateNewDeviceDelay);
+//                if(!device.isUsbHub())
+                if( !(device instanceof WindowsHubOsImp) ) 
+                {
+                  if(log.isDebugEnabled()) log.debug( "sleeping to let new device settle" );
+                  Thread.sleep(topologyUpdateNewDeviceDelay);
+                }
             }
             catch (InterruptedException iE)
             {

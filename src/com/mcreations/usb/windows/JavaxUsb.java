@@ -510,26 +510,25 @@ class JavaxUsb
      * If the device is new, it is added to the connected list and returned.  If the new device replaces
      * an existing device, the old device is retained in the disconnected list, and the new device is returned.
      * @param hub The parent UsbHubImp.
-     * @param p The parent port number.
      * @param device The UsbDeviceImp to add.
      * @param currentDevices - the list of devices that were connected before this call to topology update
      * @param disconnected The List of all devices that can possibly disconnected
      * @param connected The List of connected devices that are newely connected
      * @return The new UsbDeviceImp or existing UsbDeviceImp.
      */
-    private static void checkUsbDeviceImp(UsbHubImp hub, int p, UsbDeviceImp device, List currentDevices, List connected)
+    private static void checkUsbDeviceImp(UsbHubImp hub, UsbDeviceImp device, List currentDevices, List connected)
     {
         String meth = "checkUsbDeviceImp";
-        byte port = (byte)p;
+//        byte port = (byte)p;
         
-        if(log.isDebugEnabled()) log.debug( meth +"Entered with port" + p+"  our port num "+port );
-        UsbPortImp usbPortImp = hub.getUsbPortImp((byte)port);
-        if (null == usbPortImp)
-        {
-          log.debug(meth+" WARNING resizing port");
-          hub.resize((byte)port);
-          usbPortImp = hub.getUsbPortImp((byte)port);
-        }
+//        if(log.isDebugEnabled()) log.debug( meth +" Entered with port" + p+"  our port num "+port );
+//        UsbPortImp usbPortImp = hub.getUsbPortImp((byte)port);
+//        if (null == usbPortImp)
+//        {
+//          log.debug(meth+" WARNING resizing port");
+//          hub.resize((byte)port);
+//          usbPortImp = hub.getUsbPortImp((byte)port);
+//        }
 
         if(log.isDebugEnabled()) log.debug( meth+ " Hub now has " + hub.getNumberOfPorts() + " ports");
 
@@ -551,12 +550,41 @@ class JavaxUsb
         {  
           if(log.isDebugEnabled()) log.debug(meth+" adding new device");
           connected.add(device);
-          device.setParentUsbPortImp(usbPortImp);
+//          device.setParentUsbPortImp(usbPortImp);
+          attachParentUsbPort(hub,device);
         }
 
         if(log.isDebugEnabled()) log.debug(meth+ " Leaving with device " + device);
     }
     
+    private static void attachParentUsbPort(UsbHubImp hub, UsbDeviceImp device)
+    {
+                if(log.isDebugEnabled()) log.debug("attachParentUsbPort");
+                List ports = hub.getUsbPorts();
+                Iterator iterator = ports.iterator();
+                while(iterator.hasNext())
+                {
+                  UsbPortImp usbPortImp = (UsbPortImp)iterator.next();
+                  if(usbPortImp.isUsbDeviceAttached()) continue;
+                  if(log.isDebugEnabled()) log.debug("attachParentUsbPort(), found empty port");
+                  device.setParentUsbPortImp(usbPortImp);
+                  usbPortImp.attachUsbDeviceImp(device);
+                  return;
+                }
+
+                byte port = hub.getNumberOfPorts();
+                log.debug("attachParentUsbPort(), no empty ports found, out of  "+ port+" ports");
+                port++;
+                UsbPortImp usbPortImp = hub.getUsbPortImp((byte)port);
+                if (null == usbPortImp)
+                {
+                  log.debug("attachParentUsbPort(), WARNING resizing port");
+                  hub.resize((byte)port);
+                  usbPortImp = hub.getUsbPortImp((byte)port);
+                }
+                device.setParentUsbPortImp(usbPortImp);
+                usbPortImp.attachUsbDeviceImp(device);
+    }
 
     private static void buildConfig(UsbDeviceImp usbDev,usb_config_descriptor config)
     {
@@ -716,10 +744,8 @@ class JavaxUsb
      * and checks, whether this device
      * @param dev
      * @param bus
-     * @param parentHub
-     * @param parentport
      */
-    static UsbDeviceImp buildDevice( usb_device dev, usb_bus bus, UsbHubImp parentHub, int parentport)
+    static UsbDeviceImp buildDevice( usb_device dev, usb_bus bus)
     {
         String meth = "buildDevice";
 
@@ -752,8 +778,7 @@ class JavaxUsb
         }                
         if(log.isDebugEnabled())
         {
-          log.debug("Leaving buildDevice with device " + dev.getFilename());
-          log.debug("");
+          log.debug("buildDevice() Leaving buildDevice with device " + dev.getFilename());
         }
         return(usbDev);
     }
@@ -808,11 +833,12 @@ class JavaxUsb
             usb_bus libusb_bus = Libusb.usb_get_busses();
             log.debug(" disconnectedDevices size: "+disconnectedDevices.size());
 
-            int portNum = 1;
             
             while (libusb_bus != null)
             {
                 msg = "Scanning bus " + libusb_bus.getDirname();
+                log.debug("");
+                log.debug("");
                 log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
 
                 usb_device libusb_dev = libusb_bus.getDevices();
@@ -822,6 +848,7 @@ class JavaxUsb
 //                    usb_device_descriptor devDesc = libusb_dev.getDescriptor();
                     if(log.isDebugEnabled())
                     {
+                      log.debug("");
                       msg = "Device: " + libusb_dev.getFilename();
                       log(LOG_HOTPLUG, DEBUG, CLASS, method, msg);
                     }
@@ -841,23 +868,23 @@ class JavaxUsb
 //                      }
 //                    if( devDesc.getBDeviceClass() == Libusb.USB_CLASS_HUB)
 //                    {
-//                      UsbDeviceImp usbDev = buildDevice(libusb_dev, libusb_bus, rootHub, portNum++ );
-//                      portNum++;
+//                      UsbDeviceImp usbDev = buildDevice(libusb_dev, libusb_bus );
 //                      log.debug(method+" device is Hub, skipping");
 //                    }
 //                    else 
                     {
-                        UsbDeviceImp usbDev = buildDevice(libusb_dev, libusb_bus, rootHub, portNum );
+                        UsbDeviceImp usbDev = buildDevice(libusb_dev, libusb_bus );
                         // usbDev is a device that is being reported as existing by libusb
                         // if it is found in our list of disconnectedDevices, remove it and add it to 
                         // connected devices.
-                        checkUsbDeviceImp(rootHub, portNum++, usbDev, disconnectedDevices, connectedDevices);
+                        checkUsbDeviceImp(rootHub, usbDev, disconnectedDevices, connectedDevices);
                     }
                     libusb_dev = libusb_dev.getNext();
                 }
                 libusb_bus = libusb_bus.getNext();
             }
             log.debug(" disconnectedDevices size: "+disconnectedDevices.size());
+            log.debug(" connectedDevices size: "+connectedDevices.size());
         }
         finally
         {
