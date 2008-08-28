@@ -309,9 +309,10 @@ public class WindowsUsbServices extends AbstractUsbServices
 
         int updates = JavaxUsb.nativeTopologyUpdater(this, connectedDevices, disconnectedDevices);
         if(updates == 0) return;  // if there are no changes go home early
-        // connectedDevices contains all new devices found
-        // disconnectedDevices contains all devices removed
 
+        // if something has changed continue on
+
+        // disconnectedDevices contains all devices removed
         Iterator iterator = disconnectedDevices.iterator();
         while(iterator.hasNext())
         {
@@ -319,34 +320,22 @@ public class WindowsUsbServices extends AbstractUsbServices
             if(log.isDebugEnabled()) log.debug( "updateTopology() disconnecting device: "+device );
             device.disconnect();
             listenerImp.usbDeviceDetached(new UsbServicesEvent(this, (UsbDevice)device ));
-            
         }
 
+        // connectedDevices contains all new devices found
         iterator = connectedDevices.iterator();
         while(iterator.hasNext())
         {
             UsbDeviceImp device = (UsbDeviceImp) iterator.next();
-
+            
             // fixme: setActiveConfig... is omitted to find out, whether it
             // is really needed in libusb implementation
 //          setActiveConfigAndInterfaceSettings(device);
-// attachUsbDeviceImp now occures in JavaUsb.java
-//            try
-//            {
-//                device.getParentUsbPortImp().attachUsbDeviceImp(device);
-//            }
-//            catch (IllegalArgumentException iae)
-//            {
-//                if(log.isDebugEnabled()) log.debug( "updateTopology() while attaching UsbDeviceImp "+iae );
-//                // device is already attached
-//                continue;
-//            }
 
             // Let's wait a bit before each new device's event, so its driver can have some time to
             // talk to it without interruptions.  FIXME, why is this delay here?
             try
             {
-//                if(!device.isUsbHub())
                 if( !(device instanceof WindowsHubOsImp) ) 
                 {
                   if(log.isDebugEnabled()) log.debug( "sleeping to let new device settle" );
@@ -356,7 +345,14 @@ public class WindowsUsbServices extends AbstractUsbServices
             catch (InterruptedException iE)
             {
             }
-            if(log.isDebugEnabled()) log.debug( "updateTopology() connected device: "+device );
+            try
+            {
+              if(log.isDebugEnabled()) log.debug( "updateTopology() found device: "+device.getSerialNumberString() );
+            }
+            catch(Exception e)
+            {
+            }
+            if(log.isDebugEnabled()) log.debug( "updateTopology() connecting device: "+device );
 
             listenerImp.usbDeviceAttached(new UsbServicesEvent(this, (UsbDevice) device));
         }

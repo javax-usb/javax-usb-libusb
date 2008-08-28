@@ -187,10 +187,11 @@ class WindowsInterfaceOsImp extends DefaultUsbInterfaceOsImp
             usb_config_descriptor ucd = getWindowsDeviceOsImp().getDevice().getConfig();
             log.debug("Setting libusb to configuration number: "+ucd.getIConfiguration());
 
-            Libusb.usb_set_configuration(getWindowsDeviceOsImp().getHandle(),ucd.getIConfiguration());
+            int retval = Libusb.usb_set_configuration(getWindowsDeviceOsImp().getHandle(),ucd.getIConfiguration());
+            JavaxUsb.isReturnCodeError(retval);     // throws an exception if retval is less than 0
                          
-            int result = Libusb.usb_claim_interface(getWindowsDeviceOsImp().getHandle(),getInterfaceNumber());
-            if (result != 0)
+            retval = Libusb.usb_claim_interface(getWindowsDeviceOsImp().getHandle(),getInterfaceNumber());
+            if (retval != 0)
             {
                 String msg = "Couldn't claim interface. usb error: "+ Libusb.usb_strerror();
                 log.debug(msg);

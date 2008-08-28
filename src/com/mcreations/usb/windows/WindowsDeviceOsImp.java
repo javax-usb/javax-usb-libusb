@@ -163,7 +163,8 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
                 // set configuration has its own libusb method
                 if( (cIrp.bRequest() == UsbConst.REQUEST_SET_CONFIGURATION) && (cIrp.bmRequestType() ==0) )
                 {
-                    Libusb.usb_set_configuration( getHandle(),cIrp.wValue());
+                    int retval = Libusb.usb_set_configuration( getHandle(),cIrp.wValue());
+                    JavaxUsb.isReturnCodeError(retval);
                     return;
                 }
 
@@ -188,15 +189,9 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
                                                       "  wIndex: "+UsbUtil.toHexString(cIrp.wIndex())+
                                                       "  wLength: "+UsbUtil.toHexString(cIrp.wLength()));
 
-                int result = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(), cIrp.wValue(), cIrp.wIndex(),data ,JavaxUsb.getIoTimeout());
-                if(result >=0) 
-                  cIrp.setActualLength(result);
-                else
-                {
-                  String msg = "usb_control_msg: " + Libusb.usb_strerror() +"  errorno: " + result;
-                  log.debug(msg);
-                  throw new UsbException(msg);
-                }
+                int retval = Libusb.usb_control_msg(handle,cIrp.bmRequestType(),cIrp.bRequest(), cIrp.wValue(), cIrp.wIndex(),data ,JavaxUsb.getIoTimeout());
+                JavaxUsb.isReturnCodeError(retval);	// throws an exception if retval is less than 0
+                cIrp.setActualLength(retval);
             }
             finally
             {
@@ -259,7 +254,8 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
 
         try
         {
-            Libusb.usb_get_string_simple(handle, index, buffer);
+          int retval = Libusb.usb_get_string_simple(handle, index, buffer);
+          JavaxUsb.isReturnCodeError(retval);     // throws an exception if retval is less than 0
         }
         finally
         {
@@ -292,9 +288,7 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
 
                 if (handle == null)
                 {
-                    String msg =
-                        "Couldn't open device " + device.getFilename()
-                        + " due to error: " + Libusb.usb_strerror();
+                    String msg = "Couldn't open device " + device.getFilename() + " due to error: " + Libusb.usb_strerror();
                     log.debug(msg);
                     throw new UsbException(msg);
                 }
@@ -302,55 +296,32 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
                 if (log.isDebugEnabled())
                 {
                     int bufSize = 256;
-                    int ret;
+                    int retval;
                     byte[] buf = new byte[bufSize];
                     int manu = device.getDescriptor().getIManufacturer();
 
                     if (manu > 0)
                     {
-                        ret = Libusb.usb_get_string_simple(handle, manu, buf);
-
-                        if (ret > 0)
-                        {
-                            log.debug(
-                                "Manufacturer : " + JavaxUsb.bytes2String(buf));
-                        }
-                        else
-                        {
-                            log.debug(
-                                "Unable to fetch manufacturer string\r\n");
-                        }
+                        retval = Libusb.usb_get_string_simple(handle, manu, buf);
+                        JavaxUsb.isReturnCodeError(retval);     // throws an exception if retval is less than 0
+                        log.debug("Manufacturer : <" + JavaxUsb.bytes2String(buf)+">");
                     }
 
                     int prod = device.getDescriptor().getIProduct();
 
                     if (prod > 0)
                     {
-                        ret = Libusb.usb_get_string_simple(handle, prod, buf);
-
-                        if (ret > 0)
-                            log.debug(
-                                "Product      : " + JavaxUsb.bytes2String(buf));
-                        else
-                            log.debug("Unable to fetch product string\r\n");
+                        retval = Libusb.usb_get_string_simple(handle, prod, buf);
+                        JavaxUsb.isReturnCodeError(retval);     // throws an exception if retval is less than 0
+                        log.debug("Product      : <" + JavaxUsb.bytes2String(buf)+">");
                     }
 
                     int serial = device.getDescriptor().getISerialNumber();
-
                     if (serial > 0)
                     {
-                        ret = Libusb.usb_get_string_simple(handle, serial, buf);
-
-                        if (ret > 0)
-                        {
-                            log.debug(
-                                "Serial Number: " + JavaxUsb.bytes2String(buf));
-                        }
-                        else
-                        {
-                            log.debug(
-                                "Unable to fetch serial number string\r\n");
-                        }
+                        retval = Libusb.usb_get_string_simple(handle, serial, buf);
+                        JavaxUsb.isReturnCodeError(retval);     // throws an exception if retval is less than 0
+                        log.debug("Serial Number: <" + JavaxUsb.bytes2String(buf)+">");
                     }
                 } // end if isDebugEnabled()
             }
@@ -359,7 +330,6 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
                 JavaxUsb.getMutex().release();
             }
         }
-
         return handle;
     }
 
@@ -378,16 +348,16 @@ class WindowsDeviceOsImp extends UsbDeviceImp implements UsbDeviceOsImp
 
         try
         {
-            int result = Libusb.usb_close(handle);
+            int retval = Libusb.usb_close(handle);
 
-            if (result != 0)
+            if (retval != 0)
             {
-                String msg =
-                    "Couldn't close device " + device.getFilename()
-                    + " due to error: " + Libusb.usb_strerror();
+                String msg = "Couldn't close device " + device.getFilename()+ " due to error: " + Libusb.usb_strerror();
                 log.debug(msg);
                 throw new UsbException(msg);
             }
+            JavaxUsb.isReturnCodeError(retval);     // throws an exception if retval is less than 0
+
         }
         finally
         {
